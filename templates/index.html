@@ -7,7 +7,7 @@
   
   <!-- Production Brand Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="alternate icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='40' y2='40' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%23071633'/%3E%3Cstop offset='100%25' stop-color='%231d4ed8'/%3E%3C/linearGradient%3E%3ClinearGradient id='gold' x1='0' y1='0' x2='24' y2='24' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%23fbbf24'/%3E%3Cstop offset='50%25' stop-color='%23f99d0d'/%3E%3Cstop offset='100%25' stop-color='%23eb5500'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='10' fill='url(%23bg)'/%3E%3Crect x='1' y='1' width='38' height='38' rx='9' stroke='rgba(255,255,255,0.22)' stroke-width='1.8' fill='none'/%3E%3Cpath d='M7 23 L10.5 23 L13.5 30 L19 11 L33 11' stroke='%23ffffff' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M21 16 L23.5 21 L27 16 L29 21 L32 16 L31 23 H22 Z' fill='url(%23gold)'/%3E%3Ccircle cx='33' cy='8' r='2.2' fill='%23fde047'/%3E%3C/svg%3E" />
+  <link rel="alternate icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='40' y2='40' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%23071633'/%3E%3Cstop offset='100%25' stop-color='%231e3a8a'/%3E%3C/linearGradient%3E%3ClinearGradient id='gold' x1='8' y1='8' x2='32' y2='32' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%23fde047'/%3E%3Cstop offset='40%25' stop-color='%23f59e0b'/%3E%3Cstop offset='100%25' stop-color='%23ea580c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='10' fill='url(%23bg)'/%3E%3Cpath d='M9 27.5 L11 17 L15.5 22.5 L20 11.5 L24.5 22.5 L29 17 L31 27.5 Z' fill='url(%23gold)'/%3E%3Crect x='9' y='27.5' width='22' height='3.5' rx='1.5' fill='%23d97706'/%3E%3Ccircle cx='20' cy='10' r='1.8' fill='%23fef08a'/%3E%3C/svg%3E" />
 
   <!-- Google Fonts: Plus Jakarta Sans (Display/Headings) + Inter (UI/Body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -169,37 +169,23 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 11px;
+      gap: 12px;
       cursor: pointer;
       user-select: none;
       text-decoration: none;
     }
     .brand-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 11px;
-      background: linear-gradient(135deg, var(--navy-800) 0%, var(--navy-700) 100%);
-      color: #ffffff;
+      width: 40px;
+      height: 40px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(15, 58, 138, 0.25);
       position: relative;
-      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .brand-icon::after {
-      content: "";
-      position: absolute;
-      bottom: -2px;
-      right: -2px;
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: var(--cta-gradient);
-      border: 2px solid #ffffff;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s;
     }
     .brand:hover .brand-icon {
       transform: translateY(-1px) scale(1.04);
+      filter: drop-shadow(0 4px 10px rgba(245, 158, 11, 0.35));
     }
     .brand-text-wrap {
       display: flex;
@@ -207,31 +193,48 @@
       line-height: 1.15;
     }
     .brand-title {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 800;
-      font-size: 16px;
-      color: var(--navy-800);
-      letter-spacing: -0.025em;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
     }
-    .brand-tag {
-      font-size: 10px;
-      font-weight: 700;
+    .brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 18.5px;
+      color: var(--navy-900);
+      letter-spacing: -0.035em;
+      display: inline-flex;
+      align-items: baseline;
+    }
+    .brand-num {
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 900;
+      margin-left: 2px;
+      letter-spacing: -0.02em;
+    }
+    .brand-pro-badge {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #071633 0%, #1e3a8a 100%);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      box-shadow: 0 2px 6px rgba(7, 22, 51, 0.16);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 1.5px 6px;
-      border-radius: var(--radius-pill);
-      background: var(--cream-bg);
-      color: var(--cream-text);
-      border: 1px solid var(--cream-border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .brand-sub {
       font-size: 11.5px;
       font-weight: 500;
       color: var(--text-muted);
       margin-top: 2px;
+      letter-spacing: -0.01em;
     }
 
     /* Pill Navigation Tabs (Empire Style) */
@@ -1211,12 +1214,12 @@
       flex-direction: column;
       gap: 10px;
     }
-    .btn-action-mix {
+    .btn.btn-action-mix {
       width: 100%;
       height: 42px;
-      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;
       color: #ffffff !important;
-      border: none;
+      border: 1px solid transparent !important;
       border-radius: var(--radius-md);
       font-weight: 700;
       font-size: 13.5px;
@@ -1228,20 +1231,23 @@
       transition: all var(--trans);
       cursor: pointer;
     }
-    .btn-action-mix:hover {
+    .btn.btn-action-mix:hover:not(:disabled) {
+      background: linear-gradient(135deg, #d97706 0%, #c2410c 100%) !important;
+      color: #ffffff !important;
+      border-color: transparent !important;
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(234, 88, 12, 0.38);
-      filter: brightness(1.05);
+      box-shadow: 0 6px 20px rgba(234, 88, 12, 0.42) !important;
+      filter: none !important;
     }
-    .btn-action-mix:active {
+    .btn.btn-action-mix:active:not(:disabled) {
       transform: translateY(0);
     }
-    .btn-action-docx {
+    .btn.btn-action-docx {
       width: 100%;
       height: 40px;
-      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
       color: #ffffff !important;
-      border: none;
+      border: 1px solid transparent !important;
       border-radius: var(--radius-md);
       font-weight: 700;
       font-size: 13.5px;
@@ -1253,12 +1259,15 @@
       transition: all var(--trans);
       cursor: pointer;
     }
-    .btn-action-docx:hover {
+    .btn.btn-action-docx:hover:not(:disabled) {
+      background: linear-gradient(135deg, #172554 0%, #1d4ed8 100%) !important;
+      color: #ffffff !important;
+      border-color: transparent !important;
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
-      filter: brightness(1.06);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4) !important;
+      filter: none !important;
     }
-    .btn-action-docx:active {
+    .btn.btn-action-docx:active:not(:disabled) {
       transform: translateY(0);
     }
     .action-btn-grid {
@@ -2041,33 +2050,42 @@
   <!-- Empire EdTech Sticky Header -->
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="brand" onclick="switchView('home')">
-        <span class="brand-icon" style="background:transparent; box-shadow:none; padding:0;">
-          <svg width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div class="brand" onclick="switchView('home')" title="MathBank 10 Pro - Nền tảng Khảo thí & Soạn đề">
+        <span class="brand-icon">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="topNavLogoBg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stop-color="#071633" />
-                <stop offset="100%" stop-color="#1d4ed8" />
+                <stop offset="100%" stop-color="#1e3a8a" />
               </linearGradient>
-              <linearGradient id="topNavGold" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#fbbf24" />
-                <stop offset="50%" stop-color="#f99d0d" />
-                <stop offset="100%" stop-color="#eb5500" />
+              <linearGradient id="topNavGold" x1="8" y1="8" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#fde047" />
+                <stop offset="45%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#ea580c" />
               </linearGradient>
+              <filter id="topNavGlow" x="0" y="0" width="40" height="40" filterUnits="userSpaceOnUse">
+                <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#ea580c" flood-opacity="0.32" />
+              </filter>
             </defs>
-            <rect width="40" height="40" rx="10" fill="url(#topNavLogoBg)" />
-            <rect x="1" y="1" width="38" height="38" rx="9" stroke="rgba(255,255,255,0.22)" stroke-width="1.8" />
-            <path d="M7 23 L10.5 23 L13.5 30 L19 11 L33 11" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M21 16 L23.5 21 L27 16 L29 21 L32 16 L31 23 H22 Z" fill="url(#topNavGold)" />
-            <circle cx="33" cy="8" r="2.2" fill="#fde047" />
+            <rect width="40" height="40" rx="11" fill="url(#topNavLogoBg)" />
+            <rect x="0.75" y="0.75" width="38.5" height="38.5" rx="10.25" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
+            <g filter="url(#topNavGlow)">
+              <path d="M9 27.5 L11 17 L15.5 22.5 L20 11.5 L24.5 22.5 L29 17 L31 27.5 Z" fill="url(#topNavGold)" />
+              <rect x="9" y="27.5" width="22" height="3.5" rx="1.5" fill="#d97706" />
+              <rect x="11" y="28.5" width="18" height="1.5" rx="0.75" fill="#fde047" opacity="0.85" />
+              <path d="M20 11.5 L17.5 27.5 H22.5 Z" fill="#ffffff" opacity="0.25" />
+              <circle cx="20" cy="10" r="1.8" fill="#fef08a" />
+              <circle cx="11" cy="16" r="1.3" fill="#fef08a" />
+              <circle cx="29" cy="16" r="1.3" fill="#fef08a" />
+            </g>
           </svg>
         </span>
         <div class="brand-text-wrap">
           <div class="brand-title">
-            <span>MATHBANK 10</span>
-            <span class="brand-tag">PRO</span>
+            <span class="brand-name">MathBank<span class="brand-num">10</span></span>
+            <span class="brand-pro-badge">PRO</span>
           </div>
-          <span class="brand-sub">Hệ thống Khảo thí & Soạn đề Toán thông minh</span>
+          <span class="brand-sub">Nền tảng Khảo thí & Soạn đề Toán thông minh</span>
         </div>
       </div>
 
@@ -2599,8 +2617,9 @@
           <span class="brand-icon" style="width:26px; height:26px; border-radius:7px; background:transparent; box-shadow:none; padding:0;">
             <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#071633" />
-              <path d="M7 23 L10.5 23 L13.5 30 L19 11 L33 11" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M21 16 L23.5 21 L27 16 L29 21 L32 16 L31 23 H22 Z" fill="#f99d0d" />
+              <path d="M9 27.5 L11 17 L15.5 22.5 L20 11.5 L24.5 22.5 L29 17 L31 27.5 Z" fill="#f59e0b" />
+              <rect x="9" y="27.5" width="22" height="3.5" rx="1.5" fill="#d97706" />
+              <circle cx="20" cy="10" r="1.8" fill="#fef08a" />
             </svg>
           </span>
           <span style="font-family:'Plus Jakarta Sans', sans-serif; font-weight:700; color:var(--navy-800);">MathBank 10 Pro</span>
@@ -3042,8 +3061,9 @@
           <span class="brand-icon" style="width:26px; height:26px; border-radius:7px; background:transparent; box-shadow:none; padding:0;">
             <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#071633" />
-              <path d="M7 23 L10.5 23 L13.5 30 L19 11 L33 11" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M21 16 L23.5 21 L27 16 L29 21 L32 16 L31 23 H22 Z" fill="#f99d0d" />
+              <path d="M9 27.5 L11 17 L15.5 22.5 L20 11.5 L24.5 22.5 L29 17 L31 27.5 Z" fill="#f59e0b" />
+              <rect x="9" y="27.5" width="22" height="3.5" rx="1.5" fill="#d97706" />
+              <circle cx="20" cy="10" r="1.8" fill="#fef08a" />
             </svg>
           </span>
           <span id="authModalHeading">Đăng nhập MathBank 10</span>
