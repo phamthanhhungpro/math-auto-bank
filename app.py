@@ -2,9 +2,10 @@ import os
 import json
 import base64
 import urllib.request
+import urllib.parse
 from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -30,6 +31,8 @@ from database import (
     get_user_by_id,
     get_all_users,
     update_user_role,
+    get_setting,
+    set_setting,
 )
 from extractor import (
     extract_exam_from_pdf,
@@ -231,6 +234,83 @@ def api_auth_google(req: GoogleAuthRequest):
 
     user = authenticate_or_create_google_user(email=email, name=name, avatar=avatar)
     return {"ok": True, "token": create_session_token(user), "user": user}
+
+
+@app.get("/api/auth/google/config")
+def api_auth_google_config():
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or get_setting("google_client_id", "")
+    return {"configured": bool(client_id), "client_id": client_id}
+
+
+@app.post("/api/settings/google-oauth")
+def api_save_google_oauth(req: Dict[str, str], request: Request):
+    require_admin(request)
+    client_id = req.get("client_id", "").strip()
+    client_secret = req.get("client_secret", "").strip()
+    if client_id:
+        set_setting("google_client_id", client_id)
+    if client_secret:
+        set_setting("google_client_secret", client_secret)
+    return {"ok": True, "configured": bool(client_id and client_secret)}
+
+
+@app.get("/api/auth/google/login")
+def api_auth_google_login(request: Request):
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or get_setting("google_client_id", "")
+    if not client_id:
+        return RedirectResponse(url="/?oauth_error=missing_client_id", status_code=302)
+    redirect_uri = str(request.base_url).rstrip("/") + "/api/auth/google/callback"
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account",
+    })
+    return RedirectResponse(url=f"https://accounts.google.com/o/oauth2/v2/auth?{params}", status_code=302)
+
+
+@app.get("/api/auth/google/callback")
+def api_auth_google_callback(request: Request, code: Optional[str] = None, error: Optional[str] = None):
+    if error or not code:
+        return RedirectResponse(url=f"/?oauth_error={error or 'no_code'}", status_code=302)
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or get_setting("google_client_id", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or get_setting("google_client_secret", "")
+    redirect_uri = str(request.base_url).rstrip("/") + "/api/auth/google/callback"
+
+    token_url = "https://oauth2.googleapis.com/token"
+    data = urllib.parse.urlencode({
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }).encode("utf-8")
+    req = urllib.request.Request(token_url, data=data, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            token_data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return RedirectResponse(url="/?oauth_error=token_exchange_failed", status_code=302)
+
+    access_token = token_data.get("access_token")
+    userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+    u_req = urllib.request.Request(userinfo_url, headers={"Authorization": f"Bearer {access_token}"})
+    try:
+        with urllib.request.urlopen(u_req, timeout=15) as resp:
+            gdata = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return RedirectResponse(url="/?oauth_error=userinfo_failed", status_code=302)
+
+    email = (gdata.get("email") or "").lower()
+    name = gdata.get("name") or email.split("@")[0]
+    avatar = gdata.get("picture") or ""
+
+    user = authenticate_or_create_google_user(email=email, name=name, avatar=avatar)
+    token = create_session_token(user)
+    return RedirectResponse(url=f"/?google_token={token}", status_code=302)
+
 
 
 @app.get("/api/admin/users")

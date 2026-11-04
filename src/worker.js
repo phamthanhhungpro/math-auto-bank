@@ -59,6 +59,7 @@ async function getState(env) {
       if (stored && Array.isArray(stored.questions)) {
         stored.users = ensureSeededUsers(stored.users);
         if (!Array.isArray(stored.saved_exams)) stored.saved_exams = [];
+        if (!stored.settings) stored.settings = {};
         memoryState = stored;
         return memoryState;
       }
@@ -67,6 +68,7 @@ async function getState(env) {
       if (storedV1 && Array.isArray(storedV1.questions)) {
         storedV1.users = ensureSeededUsers(storedV1.users);
         if (!Array.isArray(storedV1.saved_exams)) storedV1.saved_exams = [];
+        if (!storedV1.settings) storedV1.settings = {};
         memoryState = storedV1;
         return memoryState;
       }
@@ -77,6 +79,10 @@ async function getState(env) {
     questions: [...INITIAL_SEED.questions],
     saved_exams: [],
     users: ensureSeededUsers([]),
+    settings: {
+      google_client_id: env.GOOGLE_CLIENT_ID || "",
+      google_client_secret: env.GOOGLE_CLIENT_SECRET || "",
+    },
   };
   return memoryState;
 }
@@ -1052,6 +1058,113 @@ export default {
             token: createSessionToken(userPublic),
             user: userPublic,
           });
+        }
+
+        // --- GOOGLE OAUTH 2.0 REDIRECT FLOW ---
+        if (path === "/api/auth/google/config" && method === "GET") {
+          const clientId = env.GOOGLE_CLIENT_ID || (state.settings && state.settings.google_client_id) || "";
+          return jsonResponse({ configured: Boolean(clientId), client_id: clientId });
+        }
+
+        if (path === "/api/settings/google-oauth" && method === "POST") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Chỉ Admin mới có quyền cấu hình Google OAuth" }, 403);
+          }
+          const body = await request.json();
+          if (!state.settings) state.settings = {};
+          if (body.client_id !== undefined) state.settings.google_client_id = String(body.client_id).trim();
+          if (body.client_secret !== undefined) state.settings.google_client_secret = String(body.client_secret).trim();
+          await persistState(env, state);
+          return jsonResponse({ ok: true, configured: Boolean(state.settings.google_client_id && state.settings.google_client_secret) });
+        }
+
+        if (path === "/api/auth/google/login" && method === "GET") {
+          const clientId = env.GOOGLE_CLIENT_ID || (state.settings && state.settings.google_client_id) || "";
+          if (!clientId) {
+            return Response.redirect(`${url.origin}/?oauth_error=missing_client_id`, 302);
+          }
+          const redirectUri = `${url.origin}/api/auth/google/callback`;
+          const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: "code",
+            scope: "openid email profile",
+            access_type: "offline",
+            prompt: "select_account",
+          });
+          return Response.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`, 302);
+        }
+
+        if (path === "/api/auth/google/callback" && method === "GET") {
+          const code = url.searchParams.get("code");
+          const error = url.searchParams.get("error");
+          if (error || !code) {
+            return Response.redirect(`${url.origin}/?oauth_error=${encodeURIComponent(error || "no_code")}`, 302);
+          }
+          const clientId = env.GOOGLE_CLIENT_ID || (state.settings && state.settings.google_client_id) || "";
+          const clientSecret = env.GOOGLE_CLIENT_SECRET || (state.settings && state.settings.google_client_secret) || "";
+          const redirectUri = `${url.origin}/api/auth/google/callback`;
+
+          const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              code,
+              client_id: clientId,
+              client_secret: clientSecret,
+              redirect_uri: redirectUri,
+              grant_type: "authorization_code",
+            }),
+          });
+          if (!tokenResp.ok) {
+            return Response.redirect(`${url.origin}/?oauth_error=token_exchange_failed`, 302);
+          }
+          const tokenData = await tokenResp.json();
+          const accessToken = tokenData.access_token;
+
+          const userResp = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (!userResp.ok) {
+            return Response.redirect(`${url.origin}/?oauth_error=userinfo_failed`, 302);
+          }
+          const gData = await userResp.json();
+          const email = String(gData.email || "").toLowerCase();
+          const name = gData.name || email.split("@")[0];
+          const avatar = gData.picture || "";
+
+          let userRecord = state.users.find((u) => u.email.toLowerCase() === email);
+          if (!userRecord) {
+            const maxId = state.users.reduce((m, u) => Math.max(m, u.id || 0), 0);
+            const assignedRole = ADMIN_EMAILS.has(email) ? "admin" : "user";
+            userRecord = {
+              id: maxId + 1,
+              email,
+              username: email.split("@")[0],
+              password: "",
+              name,
+              role: assignedRole,
+              provider: "google",
+              avatar,
+              created_at: nowFormatted(),
+            };
+            state.users.push(userRecord);
+            await persistState(env, state);
+          } else {
+            if (name && !userRecord.name) userRecord.name = name;
+            if (avatar) userRecord.avatar = avatar;
+            if (ADMIN_EMAILS.has(email)) userRecord.role = "admin";
+          }
+
+          const userPublic = {
+            id: userRecord.id,
+            email: userRecord.email,
+            name: userRecord.name,
+            role: userRecord.role,
+            avatar: userRecord.avatar || "",
+          };
+          const token = createSessionToken(userPublic);
+          return Response.redirect(`${url.origin}/?google_token=${encodeURIComponent(token)}`, 302);
         }
 
         // --- ADMIN USERS MANAGEMENT ---

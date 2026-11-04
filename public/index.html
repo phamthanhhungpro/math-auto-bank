@@ -2379,6 +2379,37 @@
               </div>
             </div>
           </div>
+
+          <!-- Google OAuth 2.0 Redirect Config Card -->
+          <div class="data-card" style="padding:16px;">
+            <div class="sidebar-group-title">
+              <span>Cấu hình Google OAuth 2.0 (Redirect)</span>
+              <span class="role-badge admin">OAuth 2.0</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">
+              Chuyển hướng người dùng trực tiếp tới Google (<code>accounts.google.com</code>) để xác thực.
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div>
+                <label class="field-label">Google Client ID</label>
+                <input class="input" id="cfgGoogleClientId" placeholder="xxxxx.apps.googleusercontent.com" />
+              </div>
+              <div>
+                <label class="field-label">Google Client Secret</label>
+                <input class="input" id="cfgGoogleClientSecret" type="password" placeholder="••••••••" />
+              </div>
+              <div>
+                <label class="field-label">Authorized Redirect URI (cần nhập vào Google Console)</label>
+                <div style="display:flex; gap:6px;">
+                  <input class="input" id="cfgGoogleRedirectUri" readonly style="background:var(--bg-subtle); font-size:11px;" />
+                  <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('cfgGoogleRedirectUri').value); showToast('Đã copy Redirect URI');">Copy</button>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveGoogleOAuthAdminSettings(this)" style="margin-top:4px;">
+                <i data-lucide="save" class="lucide"></i> Lưu cấu hình Google OAuth
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Right Column: Source PDF Repository -->
@@ -2518,15 +2549,15 @@
           <button class="auth-mode-tab" id="tabBtnRegister" onclick="switchAuthMode('register')">Tạo tài khoản</button>
         </div>
 
-        <!-- Google Sign-In Button (Opens Google Account Chooser Popup) -->
-        <button class="btn-google" id="btnGoogleSignIn" onclick="openGoogleAccountPopup()">
+        <!-- Google Sign-In Button (Standard OAuth 2.0 Redirect) -->
+        <button class="btn-google" id="btnGoogleSignIn" onclick="startGoogleOAuthRedirect(this)">
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"/>
             <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"/>
             <path fill="#FBBC05" d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 12.3s.6 3.3 1.6 5.3l3.7-2.8z"/>
             <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 19.9 7.4 23 12 23z"/>
           </svg>
-          <span>Tiếp tục với Google</span>
+          <span>Tiếp tục với Google (OAuth 2.0)</span>
         </button>
 
         <div class="login-divider">hoặc dùng email & mật khẩu</div>
@@ -2572,48 +2603,56 @@
     </div>
   </div>
 
-  <!-- GOOGLE ACCOUNT CHOOSER MODAL (STANDALONE POPUP DIALOG) -->
-  <div class="backdrop" id="googleAccountModal" onclick="closeGoogleAccountModal(event)">
-    <div class="modal modal-sm" style="max-width:400px;" onclick="event.stopPropagation()">
-      <div style="padding:22px 24px 16px 24px; text-align:center; border-bottom:1px solid var(--border);">
-        <svg width="32" height="32" viewBox="0 0 24 24" style="margin-bottom:8px;">
-          <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"/>
-          <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"/>
-          <path fill="#FBBC05" d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 12.3s.6 3.3 1.6 5.3l3.7-2.8z"/>
-          <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 19.9 7.4 23 12 23z"/>
-        </svg>
-        <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:17px; font-weight:700; color:var(--navy-900);">Đăng nhập bằng Google</div>
-        <div style="font-size:12.5px; color:var(--text-secondary); margin-top:3px;">Chọn một tài khoản để tiếp tục với <b>MathBank 10</b></div>
+  <!-- GOOGLE OAUTH 2.0 CONFIG MODAL (Shown when Google Client ID is not configured yet) -->
+  <div class="backdrop" id="googleOAuthConfigModal" onclick="closeGoogleOAuthConfigModal(event)">
+    <div class="modal modal-md" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <svg width="22" height="22" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"/>
+            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"/>
+            <path fill="#FBBC05" d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 12.3s.6 3.3 1.6 5.3l3.7-2.8z"/>
+            <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 19.9 7.4 23 12 23z"/>
+          </svg>
+          <div class="modal-title">Cấu hình Google OAuth 2.0 (Redirect)</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="closeGoogleOAuthConfigModal()">
+          <i data-lucide="x" class="lucide"></i>
+        </button>
       </div>
-      <div style="padding:16px 20px; display:flex; flex-direction:column; gap:10px;">
-        <div class="google-account-list" id="googleKnownAccountsList">
-          <!-- Dynamically populated or default accounts -->
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;">
+          Hệ thống sử dụng chuẩn <b>Google OAuth 2.0 Authorization Code (Redirect)</b> chính thức của Google (chuyển hướng người dùng sang <code>accounts.google.com</code> để chọn tài khoản). Vui lòng thiết lập Client ID từ <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--brand-color); font-weight:600; text-decoration:underline;">Google Cloud Console</a>:
         </div>
 
-        <button class="google-account-item" onclick="promptOtherGoogleAccount()">
-          <div class="google-account-avatar" style="background:#f1f5f9; color:#475569;">
-            <i data-lucide="user-plus" class="lucide" style="width:16px; height:16px;"></i>
+        <div>
+          <label class="field-label">1. Thêm Authorized Redirect URI này vào Google Cloud Console</label>
+          <div style="display:flex; gap:6px;">
+            <input class="input" id="oauthModalRedirectUri" readonly style="background:var(--bg-subtle); font-size:11.5px; font-family:monospace;" />
+            <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('oauthModalRedirectUri').value); showToast('Đã copy Redirect URI');">Copy</button>
           </div>
-          <div>
-            <div style="font-weight:600; font-size:13px; color:var(--navy-800);">Sử dụng một tài khoản khác</div>
-            <div style="font-size:11.5px; color:var(--text-muted);">Đăng nhập bằng tài khoản Google cá nhân</div>
-          </div>
+        </div>
+
+        <div>
+          <label class="field-label">2. Google Client ID</label>
+          <input class="input" id="oauthModalClientId" placeholder="VD: 1234567890-xxxx.apps.googleusercontent.com" />
+        </div>
+
+        <div>
+          <label class="field-label">3. Google Client Secret</label>
+          <input class="input" id="oauthModalClientSecret" type="password" placeholder="VD: GOCSPX-xxxx" />
+        </div>
+
+        <div id="oauthModalError" style="display:none; color:var(--danger); background:var(--danger-subtle); padding:8px 12px; border-radius:8px; font-size:12px;"></div>
+
+        <button class="btn btn-primary" id="btnSaveOAuthModal" onclick="saveGoogleOAuthConfigAndRedirect(this)" style="height:38px; width:100%; margin-top:4px;">
+          <i data-lucide="external-link" class="lucide"></i>
+          <span>Lưu cấu hình & Chuyển hướng tới Google</span>
         </button>
 
-        <div id="googleCustomInputWrap" style="display:none; padding:10px; background:var(--bg-subtle); border-radius:10px; border:1px solid var(--border); margin-top:4px;">
-          <label class="field-label" style="margin-bottom:4px;">Nhập địa chỉ email Google</label>
-          <div style="display:flex; gap:6px;">
-            <input class="input" id="googleCustomEmail" type="email" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter') submitOtherGoogleAccount()" />
-            <button class="btn btn-primary btn-sm" onclick="submitOtherGoogleAccount()">Tiếp tục</button>
-          </div>
+        <div style="font-size:11.5px; color:var(--text-muted); text-align:center;">
+          Hoặc bạn có thể đăng nhập bằng tài khoản Quản trị viên (<b>admin</b>) để thiết lập trong tab Quản trị.
         </div>
-
-        <div style="font-size:11px; color:var(--text-muted); line-height:1.45; text-align:center; margin-top:8px;">
-          Để tiếp tục, Google sẽ chia sẻ tên, địa chỉ email, tùy chọn ngôn ngữ và ảnh hồ sơ của bạn với MathBank 10.
-        </div>
-      </div>
-      <div style="padding:10px 20px; border-top:1px solid var(--border); background:var(--bg-subtle); display:flex; justify-content:flex-end;">
-        <button class="btn btn-ghost btn-sm" onclick="closeGoogleAccountModal()">Hủy bỏ</button>
       </div>
     </div>
   </div>
@@ -2867,93 +2906,116 @@
       document.getElementById("loginModalBackdrop").classList.remove("open");
     }
 
-    /* Google Authentic Account Chooser Popup */
-    function openGoogleAccountPopup() {
-      closeLoginModal();
-      const modal = document.getElementById("googleAccountModal");
-      const listEl = document.getElementById("googleKnownAccountsList");
-      document.getElementById("googleCustomInputWrap").style.display = "none";
-      document.getElementById("googleCustomEmail").value = "";
-
-      // List of saved/quick-choose Google accounts
-      const remembered = localStorage.getItem("mb10_google_history");
-      const accounts = remembered ? JSON.parse(remembered) : [];
-      if (!accounts.some(a => a.email.toLowerCase() === "thanhhungsky98@gmail.com")) {
-        accounts.unshift({
-          email: "thanhhungsky98@gmail.com",
-          name: "Hung Pham Thanh",
-          avatar: ""
-        });
+    /* Google OAuth 2.0 Authorization Code (Redirect Flow) */
+    async function startGoogleOAuthRedirect(btnEl) {
+      if (btnEl) setBtnLoading(btnEl, true, "Đang mở Google...");
+      try {
+        const resp = await apiFetch("/api/auth/google/config");
+        const data = await resp.json();
+        if (data.configured) {
+          // Has client_id configured -> redirect browser directly to Google OAuth
+          window.location.href = "/api/auth/google/login";
+          return;
+        }
+        if (btnEl) setBtnLoading(btnEl, false);
+        openGoogleOAuthConfigModal();
+      } catch (err) {
+        if (btnEl) setBtnLoading(btnEl, false);
+        // Fallback: try direct redirect
+        window.location.href = "/api/auth/google/login";
       }
+    }
 
-      listEl.innerHTML = accounts.map(a => `
-        <button class="google-account-item" onclick="chooseGoogleAccount('${a.email}', '${a.name || ''}', '${a.avatar || ''}')">
-          <div class="google-account-avatar">${(a.name || a.email || "G").slice(0, 1).toUpperCase()}</div>
-          <div>
-            <div style="font-weight:700; font-size:13px; color:var(--navy-900);">${a.name || a.email.split('@')[0]}</div>
-            <div style="font-size:11.5px; color:var(--text-muted);">${a.email}</div>
-          </div>
-        </button>
-      `).join("");
-
-      modal.classList.add("open");
+    function openGoogleOAuthConfigModal() {
+      closeLoginModal();
+      const redirectUri = window.location.origin + "/api/auth/google/callback";
+      const redirInput = document.getElementById("oauthModalRedirectUri");
+      if (redirInput) redirInput.value = redirectUri;
+      const errEl = document.getElementById("oauthModalError");
+      if (errEl) errEl.style.display = "none";
+      document.getElementById("googleOAuthConfigModal").classList.add("open");
       refreshIcons();
     }
 
-    function closeGoogleAccountModal(e) {
+    function closeGoogleOAuthConfigModal(e) {
       if (e && e.target !== e.currentTarget) return;
-      document.getElementById("googleAccountModal").classList.remove("open");
+      document.getElementById("googleOAuthConfigModal").classList.remove("open");
     }
 
-    function promptOtherGoogleAccount() {
-      const wrap = document.getElementById("googleCustomInputWrap");
-      wrap.style.display = wrap.style.display === "none" ? "block" : "none";
-      document.getElementById("googleCustomEmail")?.focus();
-    }
+    async function saveGoogleOAuthConfigAndRedirect(btnEl) {
+      const clientId = document.getElementById("oauthModalClientId").value.trim();
+      const clientSecret = document.getElementById("oauthModalClientSecret").value.trim();
+      const errEl = document.getElementById("oauthModalError");
+      errEl.style.display = "none";
 
-    function submitOtherGoogleAccount() {
-      let email = (document.getElementById("googleCustomEmail").value || "").trim().toLowerCase();
-      if (!email) {
-        showToast("Vui lòng nhập địa chỉ email Google");
+      if (!clientId) {
+        errEl.textContent = "Vui lòng nhập Google Client ID từ Google Cloud Console.";
+        errEl.style.display = "block";
         return;
       }
-      if (!email.includes("@")) email += "@gmail.com";
-      const rawName = email.split("@")[0].replace(/[._-]/g, " ");
-      const name = rawName.replace(/\b\w/g, c => c.toUpperCase());
-      chooseGoogleAccount(email, name, "");
-    }
 
-    async function chooseGoogleAccount(email, name, avatar) {
-      document.getElementById("googleAccountModal").classList.remove("open");
-      showToast(`Đang đăng nhập bằng tài khoản Google: ${email}...`);
-
+      setBtnLoading(btnEl, true, "Đang lưu cấu hình...");
       try {
-        const resp = await apiFetch("/api/auth/google", {
+        const resp = await apiFetch("/api/settings/google-oauth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, name, avatar })
+          body: JSON.stringify({ client_id: clientId, client_secret: clientSecret })
         });
         const data = await resp.json();
         if (!resp.ok) {
-          showToast(data.detail || "Lỗi đăng nhập Google");
+          setBtnLoading(btnEl, false);
+          errEl.textContent = data.detail || "Không thể lưu cấu hình (yêu cầu tài khoản Admin). Bạn có thể đăng nhập bằng tài khoản admin trước.";
+          errEl.style.display = "block";
           return;
         }
-        authToken = data.token;
-        currentUser = data.user;
-        localStorage.setItem("mb10_auth_token", authToken);
-
-        // Remember Google account for future fast chooser
-        try {
-          const existing = JSON.parse(localStorage.getItem("mb10_google_history") || "[]");
-          const filtered = existing.filter(a => a.email.toLowerCase() !== email.toLowerCase());
-          filtered.unshift({ email, name: currentUser.name, avatar: currentUser.avatar || "" });
-          localStorage.setItem("mb10_google_history", JSON.stringify(filtered.slice(0, 5)));
-        } catch (_) {}
-
-        updateAuthUI();
-        showToast(`Đăng nhập thành công với tài khoản Google (${currentUser.email})`);
+        showToast("Đã lưu cấu hình Google OAuth! Đang chuyển hướng sang Google...");
+        window.location.href = "/api/auth/google/login";
       } catch (err) {
-        showToast("Lỗi kết nối Google: " + err.message);
+        setBtnLoading(btnEl, false);
+        errEl.textContent = "Lỗi kết nối: " + err.message;
+        errEl.style.display = "block";
+      }
+    }
+
+    async function loadGoogleOAuthAdminSettings() {
+      try {
+        const resp = await apiFetch("/api/auth/google/config");
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.client_id) {
+            const input = document.getElementById("cfgGoogleClientId");
+            if (input) input.value = data.client_id;
+          }
+        }
+      } catch (_) {}
+      const redirEl = document.getElementById("cfgGoogleRedirectUri");
+      if (redirEl) redirEl.value = window.location.origin + "/api/auth/google/callback";
+    }
+
+    async function saveGoogleOAuthAdminSettings(btnEl) {
+      const clientId = document.getElementById("cfgGoogleClientId").value.trim();
+      const clientSecret = document.getElementById("cfgGoogleClientSecret").value.trim();
+      if (!clientId) {
+        showToast("Vui lòng nhập Google Client ID");
+        return;
+      }
+      setBtnLoading(btnEl, true, "Đang lưu...");
+      try {
+        const resp = await apiFetch("/api/settings/google-oauth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: clientId, client_secret: clientSecret })
+        });
+        const data = await resp.json();
+        setBtnLoading(btnEl, false);
+        if (resp.ok) {
+          showToast("Đã cập nhật cấu hình Google OAuth 2.0 thành công!");
+        } else {
+          showToast(data.detail || "Lỗi lưu cấu hình");
+        }
+      } catch (err) {
+        setBtnLoading(btnEl, false);
+        showToast("Lỗi kết nối: " + err.message);
       }
     }
 
@@ -3074,6 +3136,7 @@
       } else if (viewName === "admin") {
         renderAdminFiles();
         loadAdminUsers();
+        loadGoogleOAuthAdminSettings();
       }
       refreshIcons();
     }
@@ -3966,11 +4029,33 @@
         closePickerDrawer();
         closeQuestionModal();
         closeLoginModal();
-        closeGoogleAccountModal();
+        closeGoogleOAuthConfigModal();
       }
     });
 
     window.addEventListener("DOMContentLoaded", async () => {
+      // Check for Google OAuth 2.0 redirect parameters in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const googleToken = urlParams.get("google_token");
+      const oauthError = urlParams.get("oauth_error");
+
+      if (googleToken) {
+        authToken = googleToken;
+        localStorage.setItem("mb10_auth_token", googleToken);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        showToast("Đăng nhập tài khoản Google thành công!");
+      } else if (oauthError) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        if (oauthError === "missing_client_id") {
+          showToast("Chưa cấu hình Google Client ID. Vui lòng thiết lập để đăng nhập Google.");
+          setTimeout(() => openGoogleOAuthConfigModal(), 400);
+        } else {
+          showToast("Lỗi đăng nhập Google: " + decodeURIComponent(oauthError));
+        }
+      }
+
       refreshIcons();
       await checkCurrentSession();
       await loadStatus();

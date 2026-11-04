@@ -76,6 +76,12 @@ def init_db():
             created_at TEXT
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
     # Seed single default Admin account in database only
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     cur.execute("DELETE FROM users WHERE email IN ('giaovien@mathbank.vn', 'admin@mathbank.vn')")
@@ -494,4 +500,22 @@ def update_user_role(uid: int, role: str) -> Optional[Dict[str, Any]]:
     conn.commit()
     conn.close()
     return get_user_by_id(uid)
+
+
+def get_setting(key: str, default: str = "") -> str:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = cur.fetchone()
+    conn.close()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
 
