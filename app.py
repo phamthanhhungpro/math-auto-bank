@@ -25,6 +25,7 @@ from database import (
     get_saved_exams,
     delete_saved_exam,
     authenticate_local_user,
+    register_local_user,
     authenticate_or_create_google_user,
     get_user_by_id,
     get_all_users,
@@ -90,6 +91,12 @@ def require_admin(request: Request) -> Dict[str, Any]:
 class LoginRequest(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
     password: str
 
 
@@ -172,6 +179,18 @@ def api_auth_login(req: LoginRequest):
     user = authenticate_local_user(ident, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Tài khoản hoặc mật khẩu không chính xác")
+    return {"ok": True, "token": create_session_token(user), "user": user}
+
+
+@app.post("/api/auth/register")
+def api_auth_register(req: RegisterRequest):
+    if not req.email or "@" not in req.email:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập địa chỉ email hợp lệ")
+    if len(req.password or "") < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự")
+    user = register_local_user(req.name, req.email, req.password)
+    if not user:
+        raise HTTPException(status_code=409, detail="Email này đã được đăng ký tài khoản")
     return {"ok": True, "token": create_session_token(user), "user": user}
 
 

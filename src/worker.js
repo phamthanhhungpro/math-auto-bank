@@ -26,42 +26,23 @@ const SEEDED_USERS = [
     email: "thanhhungsky98@gmail.com",
     username: "admin",
     password: "admin123",
-    name: "Hung Pham Thanh",
-    role: "admin",
-    provider: "google",
-    avatar: "",
-    created_at: "2026-11-04 08:00",
-  },
-  {
-    id: 2,
-    email: "admin@mathbank.vn",
-    username: "admin@mathbank.vn",
-    password: "admin123",
-    name: "Quản trị viên Hệ thống",
+    name: "Quản trị viên",
     role: "admin",
     provider: "local",
     avatar: "",
     created_at: "2026-11-04 08:00",
-  },
-  {
-    id: 3,
-    email: "giaovien@mathbank.vn",
-    username: "giaovien",
-    password: "123456",
-    name: "Cô Nguyễn Thị Lan (Giáo viên)",
-    role: "user",
-    provider: "local",
-    avatar: "",
-    created_at: "2026-11-04 08:30",
   },
 ];
 
-const ADMIN_EMAILS = new Set(["thanhhungsky98@gmail.com", "admin@mathbank.vn"]);
+const ADMIN_EMAILS = new Set(["thanhhungsky98@gmail.com"]);
 
 let memoryState = null;
 
 function ensureSeededUsers(usersList) {
-  const list = Array.isArray(usersList) ? [...usersList] : [];
+  const removedEmails = new Set(["giaovien@mathbank.vn", "admin@mathbank.vn"]);
+  const list = Array.isArray(usersList)
+    ? usersList.filter((u) => !removedEmails.has(String(u.email || "").toLowerCase()))
+    : [];
   for (const su of SEEDED_USERS) {
     if (!list.some((u) => u.email.toLowerCase() === su.email.toLowerCase())) {
       list.push({ ...su });
@@ -943,6 +924,52 @@ export default {
             name: found.name,
             role: found.role,
             avatar: found.avatar || "",
+          };
+          return jsonResponse({
+            ok: true,
+            token: createSessionToken(userPublic),
+            user: userPublic,
+          });
+        }
+
+        if (path === "/api/auth/register" && method === "POST") {
+          const body = await request.json();
+          const email = String(body.email || "").trim().toLowerCase();
+          const name = String(body.name || "").trim() || email.split("@")[0];
+          const password = String(body.password || "").trim();
+
+          if (!email || !email.includes("@")) {
+            return jsonResponse({ detail: "Vui lòng nhập địa chỉ email hợp lệ" }, 400);
+          }
+          if (password.length < 6) {
+            return jsonResponse({ detail: "Mật khẩu phải có ít nhất 6 ký tự" }, 400);
+          }
+          const exists = state.users.some((u) => u.email.toLowerCase() === email);
+          if (exists) {
+            return jsonResponse({ detail: "Email này đã được đăng ký tài khoản" }, 409);
+          }
+          const maxId = state.users.reduce((m, u) => Math.max(m, u.id || 0), 0);
+          const role = ADMIN_EMAILS.has(email) ? "admin" : "user";
+          const newUser = {
+            id: maxId + 1,
+            email,
+            username: email.split("@")[0],
+            password,
+            name,
+            role,
+            provider: "local",
+            avatar: "",
+            created_at: nowFormatted(),
+          };
+          state.users.push(newUser);
+          await persistState(env, state);
+
+          const userPublic = {
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role,
+            avatar: "",
           };
           return jsonResponse({
             ok: true,

@@ -76,12 +76,11 @@ def init_db():
             created_at TEXT
         )
     """)
-    # Seed default Admin and User accounts
+    # Seed single default Admin account in database only
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    cur.execute("DELETE FROM users WHERE email IN ('giaovien@mathbank.vn', 'admin@mathbank.vn')")
     seeded = [
-        ("thanhhungsky98@gmail.com", "admin", "admin123", "Hung Pham Thanh", "admin", "google"),
-        ("admin@mathbank.vn", "admin@mathbank.vn", "admin123", "Quản trị viên Hệ thống", "admin", "local"),
-        ("giaovien@mathbank.vn", "giaovien", "123456", "Cô Nguyễn Thị Lan (Giáo viên)", "user", "local"),
+        ("thanhhungsky98@gmail.com", "admin", "admin123", "Quản trị viên", "admin", "local"),
     ]
     for email, uname, pwd, name, role, prov in seeded:
         cur.execute(
@@ -406,6 +405,34 @@ def authenticate_local_user(identifier: str, password: str) -> Optional[Dict[str
     row = cur.fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def register_local_user(name: str, email: str, password: str) -> Optional[Dict[str, Any]]:
+    clean_email = (email or "").strip().lower()
+    clean_name = (name or "").strip() or clean_email.split("@")[0]
+    pwd = (password or "").strip()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE LOWER(email) = ?", (clean_email,))
+    if cur.fetchone():
+        conn.close()
+        return None
+    role = "admin" if clean_email in ADMIN_EMAILS else "user"
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    uname = clean_email.split("@")[0]
+    cur.execute(
+        """
+        INSERT INTO users (email, username, password, name, role, provider, avatar, created_at)
+        VALUES (?, ?, ?, ?, ?, 'local', '', ?)
+        """,
+        (clean_email, uname, pwd, clean_name, role, now),
+    )
+    new_id = cur.lastrowid
+    conn.commit()
+    cur.execute("SELECT id, email, username, name, role, provider, avatar FROM users WHERE id = ?", (new_id,))
+    created = dict(cur.fetchone())
+    conn.close()
+    return created
 
 
 def authenticate_or_create_google_user(email: str, name: str, avatar: str = "") -> Dict[str, Any]:

@@ -26,39 +26,18 @@ var SEEDED_USERS = [
     email: "thanhhungsky98@gmail.com",
     username: "admin",
     password: "admin123",
-    name: "Hung Pham Thanh",
-    role: "admin",
-    provider: "google",
-    avatar: "",
-    created_at: "2026-11-04 08:00"
-  },
-  {
-    id: 2,
-    email: "admin@mathbank.vn",
-    username: "admin@mathbank.vn",
-    password: "admin123",
-    name: "Qu\u1EA3n tr\u1ECB vi\xEAn H\u1EC7 th\u1ED1ng",
+    name: "Qu\u1EA3n tr\u1ECB vi\xEAn",
     role: "admin",
     provider: "local",
     avatar: "",
     created_at: "2026-11-04 08:00"
-  },
-  {
-    id: 3,
-    email: "giaovien@mathbank.vn",
-    username: "giaovien",
-    password: "123456",
-    name: "C\xF4 Nguy\u1EC5n Th\u1ECB Lan (Gi\xE1o vi\xEAn)",
-    role: "user",
-    provider: "local",
-    avatar: "",
-    created_at: "2026-11-04 08:30"
   }
 ];
-var ADMIN_EMAILS = /* @__PURE__ */ new Set(["thanhhungsky98@gmail.com", "admin@mathbank.vn"]);
+var ADMIN_EMAILS = /* @__PURE__ */ new Set(["thanhhungsky98@gmail.com"]);
 var memoryState = null;
 function ensureSeededUsers(usersList) {
-  const list = Array.isArray(usersList) ? [...usersList] : [];
+  const removedEmails = /* @__PURE__ */ new Set(["giaovien@mathbank.vn", "admin@mathbank.vn"]);
+  const list = Array.isArray(usersList) ? usersList.filter((u) => !removedEmails.has(String(u.email || "").toLowerCase())) : [];
   for (const su of SEEDED_USERS) {
     if (!list.some((u) => u.email.toLowerCase() === su.email.toLowerCase())) {
       list.push({ ...su });
@@ -814,6 +793,49 @@ var worker_default = {
             name: found.name,
             role: found.role,
             avatar: found.avatar || ""
+          };
+          return jsonResponse({
+            ok: true,
+            token: createSessionToken(userPublic),
+            user: userPublic
+          });
+        }
+        if (path === "/api/auth/register" && method === "POST") {
+          const body = await request.json();
+          const email = String(body.email || "").trim().toLowerCase();
+          const name = String(body.name || "").trim() || email.split("@")[0];
+          const password = String(body.password || "").trim();
+          if (!email || !email.includes("@")) {
+            return jsonResponse({ detail: "Vui l\xF2ng nh\u1EADp \u0111\u1ECBa ch\u1EC9 email h\u1EE3p l\u1EC7" }, 400);
+          }
+          if (password.length < 6) {
+            return jsonResponse({ detail: "M\u1EADt kh\u1EA9u ph\u1EA3i c\xF3 \xEDt nh\u1EA5t 6 k\xFD t\u1EF1" }, 400);
+          }
+          const exists = state.users.some((u) => u.email.toLowerCase() === email);
+          if (exists) {
+            return jsonResponse({ detail: "Email n\xE0y \u0111\xE3 \u0111\u01B0\u1EE3c \u0111\u0103ng k\xFD t\xE0i kho\u1EA3n" }, 409);
+          }
+          const maxId = state.users.reduce((m, u) => Math.max(m, u.id || 0), 0);
+          const role = ADMIN_EMAILS.has(email) ? "admin" : "user";
+          const newUser = {
+            id: maxId + 1,
+            email,
+            username: email.split("@")[0],
+            password,
+            name,
+            role,
+            provider: "local",
+            avatar: "",
+            created_at: nowFormatted()
+          };
+          state.users.push(newUser);
+          await persistState(env, state);
+          const userPublic = {
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role,
+            avatar: ""
           };
           return jsonResponse({
             ok: true,
