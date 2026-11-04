@@ -20,15 +20,73 @@ const EXAM_SECTIONS = [
   { title: "Bài V (0,5 điểm)", slots: [{ code: "V", prefix: "" }] },
 ];
 
+const SEEDED_USERS = [
+  {
+    id: 1,
+    email: "thanhhungsky98@gmail.com",
+    username: "admin",
+    password: "admin123",
+    name: "Hung Pham Thanh",
+    role: "admin",
+    provider: "google",
+    avatar: "",
+    created_at: "2026-11-04 08:00",
+  },
+  {
+    id: 2,
+    email: "admin@mathbank.vn",
+    username: "admin@mathbank.vn",
+    password: "admin123",
+    name: "Quản trị viên Hệ thống",
+    role: "admin",
+    provider: "local",
+    avatar: "",
+    created_at: "2026-11-04 08:00",
+  },
+  {
+    id: 3,
+    email: "giaovien@mathbank.vn",
+    username: "giaovien",
+    password: "123456",
+    name: "Cô Nguyễn Thị Lan (Giáo viên)",
+    role: "user",
+    provider: "local",
+    avatar: "",
+    created_at: "2026-11-04 08:30",
+  },
+];
+
+const ADMIN_EMAILS = new Set(["thanhhungsky98@gmail.com", "admin@mathbank.vn"]);
+
 let memoryState = null;
+
+function ensureSeededUsers(usersList) {
+  const list = Array.isArray(usersList) ? [...usersList] : [];
+  for (const su of SEEDED_USERS) {
+    if (!list.some((u) => u.email.toLowerCase() === su.email.toLowerCase())) {
+      list.push({ ...su });
+    }
+  }
+  return list;
+}
 
 async function getState(env) {
   if (memoryState) return memoryState;
   if (env.KV) {
     try {
-      const stored = await env.KV.get("BANK_STATE_V1", "json");
+      const stored = await env.KV.get("BANK_STATE_V2", "json");
       if (stored && Array.isArray(stored.questions)) {
+        stored.users = ensureSeededUsers(stored.users);
+        if (!Array.isArray(stored.saved_exams)) stored.saved_exams = [];
         memoryState = stored;
+        return memoryState;
+      }
+      // Fallback check V1
+      const storedV1 = await env.KV.get("BANK_STATE_V1", "json");
+      if (storedV1 && Array.isArray(storedV1.questions)) {
+        storedV1.users = ensureSeededUsers(storedV1.users);
+        if (!Array.isArray(storedV1.saved_exams)) storedV1.saved_exams = [];
+        memoryState = storedV1;
         return memoryState;
       }
     } catch (_) {}
@@ -37,6 +95,7 @@ async function getState(env) {
     exams: [...INITIAL_SEED.exams],
     questions: [...INITIAL_SEED.questions],
     saved_exams: [],
+    users: ensureSeededUsers([]),
   };
   return memoryState;
 }
@@ -44,7 +103,7 @@ async function getState(env) {
 async function persistState(env, state) {
   memoryState = state;
   if (env.KV) {
-    await env.KV.put("BANK_STATE_V1", JSON.stringify(state));
+    await env.KV.put("BANK_STATE_V2", JSON.stringify(state));
   }
 }
 
@@ -54,6 +113,8 @@ function jsonResponse(data, status = 200) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     },
   });
 }
@@ -63,7 +124,488 @@ function nowFormatted() {
   return d.toISOString().replace("T", " ").slice(0, 16);
 }
 
-// --- Minimal Uncompressed ZIP Builder for .docx ---
+// Simple stateless token encoding/verification
+function createSessionToken(user) {
+  const payload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    avatar: user.avatar || "",
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 14, // 14 days
+  };
+  const jsonStr = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(jsonStr);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return "mb10." + btoa(bin);
+}
+
+function parseSessionToken(request, state) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!auth.startsWith("Bearer mb10.")) return null;
+  try {
+    const b64 = auth.slice("Bearer mb10.".length);
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    if (payload.exp && payload.exp < Date.now()) return null;
+    // Lookup latest role from state.users
+    if (state && Array.isArray(state.users)) {
+      const dbUser = state.users.find(
+        (u) => u.id === payload.id || u.email.toLowerCase() === String(payload.email || "").toLowerCase()
+      );
+      if (dbUser) {
+        return {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: dbUser.role,
+          avatar: dbUser.avatar || "",
+        };
+      }
+    }
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ============================================================================
+// NATIVE MICROSOFT WORD OMML EQUATION CONVERTER (LaTeX -> <m:oMath>)
+// ============================================================================
+
+function xmlEscape(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const LATEX_SYMBOLS = {
+  "\\cdot": "⋅",
+  "\\times": "×",
+  "\\div": "÷",
+  "\\pm": "±",
+  "\\mp": "∓",
+  "\\le": "≤",
+  "\\leq": "≤",
+  "\\ge": "≥",
+  "\\geq": "≥",
+  "\\ne": "≠",
+  "\\neq": "≠",
+  "\\approx": "≈",
+  "\\equiv": "≡",
+  "\\sim": "∽",
+  "\\backsim": "∽",
+  "\\cong": "≅",
+  "\\propto": "∝",
+  "\\infty": "∞",
+  "\\partial": "∂",
+  "\\nabla": "∇",
+  "\\forall": "∀",
+  "\\exists": "∃",
+  "\\emptyset": "∅",
+  "\\varnothing": "∅",
+  "\\in": "∈",
+  "\\notin": "∉",
+  "\\ni": "∋",
+  "\\subset": "⊂",
+  "\\subseteq": "⊆",
+  "\\supset": "⊃",
+  "\\supseteq": "⊇",
+  "\\cup": "∪",
+  "\\cap": "∩",
+  "\\setminus": "∖",
+  "\\Rightarrow": "⇒",
+  "\\implies": "⇒",
+  "\\Leftrightarrow": "⇔",
+  "\\iff": "⇔",
+  "\\rightarrow": "→",
+  "\\to": "→",
+  "\\leftarrow": "←",
+  "\\leftrightarrow": "↔",
+  "\\mapsto": "↦",
+  "\\uparrow": "↑",
+  "\\downarrow": "↓",
+  "\\perp": "⊥",
+  "\\parallel": "∥",
+  "\\angle": "∠",
+  "\\triangle": "△",
+  "\\square": "□",
+  "\\circ": "°",
+  "\\dots": "…",
+  "\\ldots": "…",
+  "\\cdots": "⋯",
+  "\\vdots": "⋮",
+  "\\ddots": "⋱",
+  "\\alpha": "α",
+  "\\beta": "β",
+  "\\gamma": "γ",
+  "\\delta": "δ",
+  "\\epsilon": "ϵ",
+  "\\varepsilon": "ε",
+  "\\zeta": "ζ",
+  "\\eta": "η",
+  "\\theta": "θ",
+  "\\vartheta": "ϑ",
+  "\\iota": "ι",
+  "\\kappa": "κ",
+  "\\lambda": "λ",
+  "\\mu": "μ",
+  "\\nu": "ν",
+  "\\xi": "ξ",
+  "\\pi": "π",
+  "\\rho": "ρ",
+  "\\sigma": "σ",
+  "\\tau": "τ",
+  "\\upsilon": "υ",
+  "\\phi": "ϕ",
+  "\\varphi": "φ",
+  "\\chi": "χ",
+  "\\psi": "ψ",
+  "\\omega": "ω",
+  "\\Gamma": "Γ",
+  "\\Delta": "Δ",
+  "\\Theta": "Θ",
+  "\\Lambda": "Λ",
+  "\\Xi": "Ξ",
+  "\\Pi": "Π",
+  "\\Sigma": "Σ",
+  "\\Upsilon": "Υ",
+  "\\Phi": "Φ",
+  "\\Psi": "Ψ",
+  "\\Omega": "Ω",
+  "\\ell": "ℓ",
+  "\\sin": "sin",
+  "\\cos": "cos",
+  "\\tan": "tan",
+  "\\cot": "cot",
+  "\\arcsin": "arcsin",
+  "\\arccos": "arccos",
+  "\\arctan": "arctan",
+  "\\ln": "ln",
+  "\\log": "log",
+  "\\min": "min",
+  "\\max": "max",
+  "\\lim": "lim",
+  "\\{": "{",
+  "\\}": "}",
+  "\\%": "%",
+  "\\&": "&",
+  "\\_": "_",
+  "\\,": " ",
+  "\\;": " ",
+  "\\:": " ",
+  "\\!": "",
+  "\\quad": "  ",
+  "\\qquad": "    ",
+};
+
+const MATHBB_MAP = {
+  R: "ℝ",
+  N: "ℕ",
+  Z: "ℤ",
+  Q: "ℚ",
+  C: "ℂ",
+};
+
+function makeMathRun(text, isNormalText = false) {
+  if (!text) return "";
+  const rPr = isNormalText ? "<m:rPr><m:nor/></m:rPr>" : "";
+  return `<m:r>${rPr}<m:t xml:space="preserve">${xmlEscape(text)}</m:t></m:r>`;
+}
+
+function skipSpaces(s, pos) {
+  while (pos < s.length && /\s/.test(s[pos])) pos++;
+  return pos;
+}
+
+function readBracedGroup(s, pos) {
+  pos = skipSpaces(s, pos);
+  if (pos >= s.length) return { content: "", nextPos: pos };
+  if (s[pos] === "{") {
+    let depth = 1;
+    let i = pos + 1;
+    while (i < s.length && depth > 0) {
+      if (s[i] === "\\" && i + 1 < s.length) {
+        i += 2;
+        continue;
+      }
+      if (s[i] === "{") depth++;
+      else if (s[i] === "}") depth--;
+      i++;
+    }
+    return { content: s.slice(pos + 1, i - 1), nextPos: i };
+  }
+  if (s[pos] === "\\") {
+    const m = s.slice(pos).match(/^\\[a-zA-Z]+|^\\./);
+    if (m) {
+      return { content: m[0], nextPos: pos + m[0].length };
+    }
+  }
+  return { content: s[pos], nextPos: pos + 1 };
+}
+
+function readBracketGroup(s, pos) {
+  pos = skipSpaces(s, pos);
+  if (pos >= s.length || s[pos] !== "[") return null;
+  let depth = 1;
+  let i = pos + 1;
+  while (i < s.length && depth > 0) {
+    if (s[i] === "[") depth++;
+    else if (s[i] === "]") depth--;
+    i++;
+  }
+  return { content: s.slice(pos + 1, i - 1), nextPos: i };
+}
+
+function parseSingleAtom(s, pos) {
+  pos = skipSpaces(s, pos);
+  if (pos >= s.length) return { xml: "", nextPos: pos };
+
+  // 1. Check \begin{cases} / \begin{aligned} / \begin{array} / \begin{matrix}
+  if (s.startsWith("\\begin{", pos)) {
+    const envMatch = s.slice(pos).match(/^\\begin\{(cases|aligned|array|matrix|pmatrix|bmatrix)\}/);
+    if (envMatch) {
+      const envName = envMatch[1];
+      const endTag = `\\end{${envName}}`;
+      let bodyStart = pos + envMatch[0].length;
+      // If array has column spec like {l} or {cc}, skip it
+      if (envName === "array" && s[skipSpaces(s, bodyStart)] === "{") {
+        const colSpec = readBracedGroup(s, bodyStart);
+        bodyStart = colSpec.nextPos;
+      }
+      const endIdx = s.indexOf(endTag, bodyStart);
+      if (endIdx !== -1) {
+        const body = s.slice(bodyStart, endIdx);
+        const rows = body
+          .split(/\\\\/)
+          .map((r) => r.replace(/&/g, " ").trim())
+          .filter(Boolean);
+        const eqRows = rows.map((r) => `<m:e>${parseLatexToOmmlNodes(r)}</m:e>`).join("");
+        const eqArr = `<m:eqArr>${eqRows || `<m:e>${makeMathRun(" ")}</m:e>`}</m:eqArr>`;
+        const xml =
+          envName === "cases"
+            ? `<m:d><m:dPr><m:begChr m:val="{"/><m:endChr m:val=""/></m:dPr><m:e>${eqArr}</m:e></m:d>`
+            : eqArr;
+        return { xml, nextPos: endIdx + endTag.length };
+      }
+    }
+  }
+
+  // 2. Braced group {...}
+  if (s[pos] === "{") {
+    const grp = readBracedGroup(s, pos);
+    return { xml: parseLatexToOmmlNodes(grp.content), nextPos: grp.nextPos };
+  }
+
+  // 3. LaTeX command \...
+  if (s[pos] === "\\") {
+    const cmdMatch = s.slice(pos).match(/^\\[a-zA-Z]+|^\\./);
+    if (cmdMatch) {
+      const cmd = cmdMatch[0];
+      let nextPos = pos + cmd.length;
+
+      // Ignore sizing/delimiter modifiers \left, \right, \big, \Big, \displaystyle
+      if (
+        cmd === "\\left" ||
+        cmd === "\\right" ||
+        cmd === "\\big" ||
+        cmd === "\\Big" ||
+        cmd === "\\bigg" ||
+        cmd === "\\Bigg" ||
+        cmd === "\\displaystyle" ||
+        cmd === "\\textstyle"
+      ) {
+        nextPos = skipSpaces(s, nextPos);
+        if (cmd === "\\right" && s[nextPos] === ".") {
+          return { xml: "", nextPos: nextPos + 1 };
+        }
+        return parseSingleAtom(s, nextPos);
+      }
+
+      // Fractions \frac{a}{b}, \dfrac{a}{b}, \tfrac{a}{b}
+      if (cmd === "\\frac" || cmd === "\\dfrac" || cmd === "\\tfrac") {
+        const num = readBracedGroup(s, nextPos);
+        const den = readBracedGroup(s, num.nextPos);
+        const numXml = parseLatexToOmmlNodes(num.content) || makeMathRun(" ");
+        const denXml = parseLatexToOmmlNodes(den.content) || makeMathRun(" ");
+        return {
+          xml: `<m:f><m:num>${numXml}</m:num><m:den>${denXml}</m:den></m:f>`,
+          nextPos: den.nextPos,
+        };
+      }
+
+      // Roots \sqrt{x} or \sqrt[n]{x}
+      if (cmd === "\\sqrt") {
+        const optDeg = readBracketGroup(s, nextPos);
+        if (optDeg) {
+          const rad = readBracedGroup(s, optDeg.nextPos);
+          const degXml = parseLatexToOmmlNodes(optDeg.content) || makeMathRun(" ");
+          const radXml = parseLatexToOmmlNodes(rad.content) || makeMathRun(" ");
+          return {
+            xml: `<m:rad><m:deg>${degXml}</m:deg><m:e>${radXml}</m:e></m:rad>`,
+            nextPos: rad.nextPos,
+          };
+        } else {
+          const rad = readBracedGroup(s, nextPos);
+          const radXml = parseLatexToOmmlNodes(rad.content) || makeMathRun(" ");
+          return {
+            xml: `<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/><m:e>${radXml}</m:e></m:rad>`,
+            nextPos: rad.nextPos,
+          };
+        }
+      }
+
+      // Accents: \widehat{ABC}, \hat{x}, \vec{a}, \overrightarrow{AB}
+      if (cmd === "\\widehat" || cmd === "\\hat") {
+        const inner = readBracedGroup(s, nextPos);
+        const innerXml = parseLatexToOmmlNodes(inner.content) || makeMathRun(" ");
+        return {
+          xml: `<m:acc><m:accPr><m:chr m:val="&#x0302;"/></m:accPr><m:e>${innerXml}</m:e></m:acc>`,
+          nextPos: inner.nextPos,
+        };
+      }
+      if (cmd === "\\vec" || cmd === "\\overrightarrow") {
+        const inner = readBracedGroup(s, nextPos);
+        const innerXml = parseLatexToOmmlNodes(inner.content) || makeMathRun(" ");
+        return {
+          xml: `<m:acc><m:accPr><m:chr m:val="&#x20D7;"/></m:accPr><m:e>${innerXml}</m:e></m:acc>`,
+          nextPos: inner.nextPos,
+        };
+      }
+      if (cmd === "\\overline" || cmd === "\\bar") {
+        const inner = readBracedGroup(s, nextPos);
+        const innerXml = parseLatexToOmmlNodes(inner.content) || makeMathRun(" ");
+        return {
+          xml: `<m:bar><m:barPr><m:pos m:val="top"/></m:barPr><m:e>${innerXml}</m:e></m:bar>`,
+          nextPos: inner.nextPos,
+        };
+      }
+
+      // Normal text inside math: \text{...}, \mathrm{...}, \textbf{...}
+      if (cmd === "\\text" || cmd === "\\mathrm" || cmd === "\\textbf" || cmd === "\\textit") {
+        const inner = readBracedGroup(s, nextPos);
+        return {
+          xml: makeMathRun(inner.content, true),
+          nextPos: inner.nextPos,
+        };
+      }
+
+      // Blackboard bold \mathbb{R}
+      if (cmd === "\\mathbb") {
+        const inner = readBracedGroup(s, nextPos);
+        const ch = MATHBB_MAP[inner.content.trim()] || inner.content.trim();
+        return {
+          xml: makeMathRun(ch),
+          nextPos: inner.nextPos,
+        };
+      }
+
+      // Known symbol
+      if (cmd in LATEX_SYMBOLS) {
+        const sym = LATEX_SYMBOLS[cmd];
+        const isFunc = ["sin", "cos", "tan", "cot", "ln", "log", "min", "max", "lim"].includes(sym);
+        return {
+          xml: sym ? makeMathRun(sym, isFunc) : "",
+          nextPos,
+        };
+      }
+
+      // Unknown command fallback: strip leading slash
+      return {
+        xml: makeMathRun(cmd.slice(1)),
+        nextPos,
+      };
+    }
+  }
+
+  // 4. Single character atom
+  const ch = s[pos];
+  if (ch === "}") {
+    return { xml: "", nextPos: pos + 1 };
+  }
+  return {
+    xml: makeMathRun(ch),
+    nextPos: pos + 1,
+  };
+}
+
+function parseLatexToOmmlNodes(s) {
+  let pos = 0;
+  let outXml = "";
+
+  while (pos < s.length) {
+    pos = skipSpaces(s, pos);
+    if (pos >= s.length) break;
+
+    // Stray ^ or _ without base
+    if (s[pos] === "^" || s[pos] === "_") {
+      const op = s[pos];
+      const grp = readBracedGroup(s, pos + 1);
+      const subOrSupXml = parseLatexToOmmlNodes(grp.content) || makeMathRun(" ");
+      if (op === "^") {
+        outXml += `<m:sSup><m:e>${makeMathRun(" ")}</m:e><m:sup>${subOrSupXml}</m:sup></m:sSup>`;
+      } else {
+        outXml += `<m:sSub><m:e>${makeMathRun(" ")}</m:e><m:sub>${subOrSupXml}</m:sub></m:sSub>`;
+      }
+      pos = grp.nextPos;
+      continue;
+    }
+
+    const atom = parseSingleAtom(s, pos);
+    let baseXml = atom.xml;
+    pos = atom.nextPos;
+
+    // Check if followed by ^ or _
+    let subXml = null;
+    let supXml = null;
+
+    while (pos < s.length) {
+      const p = skipSpaces(s, pos);
+      if (p < s.length && s[p] === "^" && supXml === null) {
+        const grp = readBracedGroup(s, p + 1);
+        supXml = parseLatexToOmmlNodes(grp.content) || makeMathRun(" ");
+        pos = grp.nextPos;
+      } else if (p < s.length && s[p] === "_" && subXml === null) {
+        const grp = readBracedGroup(s, p + 1);
+        subXml = parseLatexToOmmlNodes(grp.content) || makeMathRun(" ");
+        pos = grp.nextPos;
+      } else {
+        break;
+      }
+    }
+
+    const safeBase = baseXml || makeMathRun(" ");
+    if (subXml !== null && supXml !== null) {
+      outXml += `<m:sSubSup><m:e>${safeBase}</m:e><m:sub>${subXml}</m:sub><m:sup>${supXml}</m:sup></m:sSubSup>`;
+    } else if (supXml !== null) {
+      outXml += `<m:sSup><m:e>${safeBase}</m:e><m:sup>${supXml}</m:sup></m:sSup>`;
+    } else if (subXml !== null) {
+      outXml += `<m:sSub><m:e>${safeBase}</m:e><m:sub>${subXml}</m:sub></m:sSub>`;
+    } else {
+      outXml += baseXml;
+    }
+  }
+
+  return outXml;
+}
+
+function latexToOmml(latexStr) {
+  const cleaned = String(latexStr || "").trim();
+  if (!cleaned) return "";
+  const innerNodes = parseLatexToOmmlNodes(cleaned);
+  if (!innerNodes) return "";
+  return `<m:oMath>${innerNodes}</m:oMath>`;
+}
+
+// ============================================================================
+// DOCX BUILDER WITH NATIVE OMML EQUATIONS + IMAGES + TABLES
+// ============================================================================
+
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
@@ -166,64 +708,41 @@ function createZip(files) {
   return out;
 }
 
-function xmlEscape(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function latexToReadableText(str) {
-  if (!str) return "";
-  let s = str.replace(/\$\s*(\[[^\$\]]+?\))\s*\$/g, "$1");
-  s = s.replace(/\$\$([\s\S]*?)\$\$/g, "$1").replace(/\$([^\$]+?)\$/g, "$1");
-  s = s
-    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)")
-    .replace(/\\sqrt\{([^{}]+)\}/g, "√($1)")
-    .replace(/\\sqrt\s*([a-zA-Z0-9])/g, "√$1")
-    .replace(/\\Delta/g, "Δ")
-    .replace(/\\pi/g, "π")
-    .replace(/\\alpha/g, "α")
-    .replace(/\\beta/g, "β")
-    .replace(/\\gamma/g, "γ")
-    .replace(/\\le\b|\\leq\b/g, "≤")
-    .replace(/\\ge\b|\\geq\b/g, "≥")
-    .replace(/\\ne\b|\\neq\b/g, "≠")
-    .replace(/\\approx\b/g, "≈")
-    .replace(/\\pm\b/g, "±")
-    .replace(/\\cdot\b/g, "·")
-    .replace(/\\times\b/g, "×")
-    .replace(/\\div\b/g, ":")
-    .replace(/\\infty\b/g, "∞")
-    .replace(/\\perp\b/g, "⊥")
-    .replace(/\\parallel\b/g, "∥")
-    .replace(/\\angle\b|\\widehat\b/g, "∠")
-    .replace(/\\triangle\b/g, "△")
-    .replace(/\\in\b/g, "∈")
-    .replace(/\\subset\b/g, "⊂")
-    .replace(/\\cup\b/g, "∪")
-    .replace(/\\cap\b/g, "∩")
-    .replace(/\\Rightarrow\b/g, "⇒")
-    .replace(/\\Leftrightarrow\b/g, "⇔")
-    .replace(/\^\{2\}|\^2\b/g, "²")
-    .replace(/\^\{3\}|\^3\b/g, "³")
-    .replace(/\^\{0\}|\^\\circ/g, "°")
-    .replace(/\\left|\\right/g, "")
-    .replace(/\\text\{([^{}]*)\}/g, "$1")
-    .replace(/\{([^{}]*)\}/g, "$1");
-  return s;
-}
-
-function makeParagraphXml(text, opts = {}) {
-  const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : `<w:jc w:val="both"/>`;
+function makeTextRunXml(text, opts = {}) {
+  if (!text) return "";
   const bold = opts.bold ? "<w:b/>" : "";
   const italic = opts.italic ? "<w:i/>" : "";
   const sz = opts.sz || 26;
-  const prefixXml = opts.prefix
-    ? `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(opts.prefix)}</w:t></w:r>`
-    : "";
-  return `<w:p><w:pPr><w:spacing w:before="40" w:after="60" w:line="276" w:lineRule="auto"/>${align}</w:pPr>${prefixXml}<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>${bold}${italic}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+  return `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>${bold}${italic}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
+}
+
+function makeRichParagraphXml(text, opts = {}) {
+  const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : `<w:jc w:val="both"/>`;
+  const sz = opts.sz || 26;
+  let innerXml = "";
+
+  if (opts.prefix) {
+    innerXml += makeTextRunXml(opts.prefix, { bold: true, sz });
+  }
+
+  // Unwrap half-open intervals like $[80; 90)$ to plain text
+  const cleaned = String(text || "").replace(/\$\s*(\[[^\$\]]+?\))\s*\$/g, "$1");
+  const segments = cleaned.split(/(\$\$[\s\S]+?\$\$|\$[^\$]+?\$)/g);
+
+  for (const seg of segments) {
+    if (!seg) continue;
+    if (seg.startsWith("$$") && seg.endsWith("$$") && seg.length > 4) {
+      const mathXml = latexToOmml(seg.slice(2, -2));
+      innerXml += mathXml || makeTextRunXml(seg.slice(2, -2), opts);
+    } else if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
+      const mathXml = latexToOmml(seg.slice(1, -1));
+      innerXml += mathXml || makeTextRunXml(seg.slice(1, -1), opts);
+    } else {
+      innerXml += makeTextRunXml(seg, opts);
+    }
+  }
+
+  return `<w:p><w:pPr><w:spacing w:before="40" w:after="60" w:line="276" w:lineRule="auto"/>${align}</w:pPr>${innerXml}</w:p>`;
 }
 
 function makeTableXml(htmlTable) {
@@ -236,8 +755,8 @@ function makeTableXml(htmlTable) {
     let cellsXml = "";
     for (const c of cells) {
       const isTh = c[1].toLowerCase() === "th";
-      const cellText = latexToReadableText(c[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-      cellsXml += `<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr>${makeParagraphXml(cellText, { align: "center", bold: isTh, sz: 24 })}</w:tc>`;
+      const cellText = c[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      cellsXml += `<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr>${makeRichParagraphXml(cellText, { align: "center", bold: isTh, sz: 24 })}</w:tc>`;
     }
     rowsXml += `<w:tr>${cellsXml}</w:tr>`;
   }
@@ -256,18 +775,18 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   let bodyXml = "";
   let imgCounter = 1;
 
-  bodyXml += makeParagraphXml(`${headerInfo.org_name} — ${headerInfo.school_name}`, { align: "center", bold: true, sz: 24 });
-  bodyXml += makeParagraphXml(`${headerInfo.exam_title} (Năm học ${headerInfo.academic_year})`, { align: "center", bold: true, sz: 26 });
-  bodyXml += makeParagraphXml(`Môn: TOÁN — Mã đề: ${headerInfo.exam_code} — Thời gian: ${headerInfo.duration}`, { align: "center", italic: true, sz: 22 });
+  bodyXml += makeRichParagraphXml(`${headerInfo.org_name} — ${headerInfo.school_name}`, { align: "center", bold: true, sz: 24 });
+  bodyXml += makeRichParagraphXml(`${headerInfo.exam_title} (Năm học ${headerInfo.academic_year})`, { align: "center", bold: true, sz: 26 });
+  bodyXml += makeRichParagraphXml(`Môn: TOÁN — Mã đề: ${headerInfo.exam_code} — Thời gian: ${headerInfo.duration}`, { align: "center", italic: true, sz: 22 });
 
   for (const sec of EXAM_SECTIONS) {
-    bodyXml += makeParagraphXml(sec.title, { bold: true, sz: 26 });
+    bodyXml += makeRichParagraphXml(sec.title, { bold: true, sz: 26 });
     for (const slotObj of sec.slots) {
       const q = questionsBySlot[slotObj.code];
       if (!q) continue;
 
       let imgRelId = null;
-      if (q.figure_path && env.ASSETS) {
+      if (q.figure_path) {
         try {
           let imgBytes = null;
           if (q.figure_path.startsWith("data:image/")) {
@@ -277,8 +796,10 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
             for (let i = 0; i < binStr.length; i++) imgBytes[i] = binStr.charCodeAt(i);
           } else {
             const assetUrl = new URL(q.figure_path, reqUrl);
-            const assetResp = await env.ASSETS.fetch(new Request(assetUrl));
-            if (assetResp.ok) {
+            const assetResp = env.ASSETS
+              ? await env.ASSETS.fetch(new Request(assetUrl))
+              : await fetch(assetUrl);
+            if (assetResp && assetResp.ok) {
               imgBytes = new Uint8Array(await assetResp.arrayBuffer());
             }
           }
@@ -311,8 +832,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
           for (const ln of lines) {
             const t = ln.trim();
             if (!t) continue;
-            const readable = latexToReadableText(t);
-            bodyXml += makeParagraphXml(readable, { prefix: firstLine ? slotObj.prefix : "" });
+            bodyXml += makeRichParagraphXml(t, { prefix: firstLine ? slotObj.prefix : "" });
             firstLine = false;
           }
         }
@@ -324,16 +844,16 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
     }
   }
 
-  bodyXml += makeParagraphXml("-------------------- HẾT --------------------", { align: "center", bold: true, sz: 24 });
+  bodyXml += makeRichParagraphXml("-------------------- HẾT --------------------", { align: "center", bold: true, sz: 24 });
 
   if (includeSolutions) {
     bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
-    bodyXml += makeParagraphXml(`ĐÁP ÁN & HƯỚNG DẪN CHẤM — MÃ ĐỀ ${headerInfo.exam_code}`, { align: "center", bold: true, sz: 26 });
+    bodyXml += makeRichParagraphXml(`ĐÁP ÁN & HƯỚNG DẪN CHẤM — MÃ ĐỀ ${headerInfo.exam_code}`, { align: "center", bold: true, sz: 26 });
     for (const s of EXAM_SLOTS) {
       const q = questionsBySlot[s.code];
       if (!q) continue;
-      const sol = latexToReadableText(q.solution || "Xem lời giải chi tiết.");
-      bodyXml += makeParagraphXml(`[${q.source_name}] ${sol}`, { prefix: `Câu ${s.code}: ` });
+      const sol = q.solution || "Xem lời giải chi tiết.";
+      bodyXml += makeRichParagraphXml(`[${q.source_name}] ${sol}`, { prefix: `Câu ${s.code}: ` });
     }
   }
 
@@ -357,6 +877,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
             xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
   <w:body>
@@ -379,15 +900,150 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   return createZip(zipEntries);
 }
 
+// ============================================================================
+// WORKER FETCH HANDLER
+// ============================================================================
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
 
+    if (method === "OPTIONS") {
+      return jsonResponse({ ok: true });
+    }
+
     try {
       if (path.startsWith("/api/")) {
         const state = await getState(env);
+        const currentUser = parseSessionToken(request, state);
+
+        // --- AUTH ENDPOINTS ---
+        if (path === "/api/auth/me" && method === "GET") {
+          return jsonResponse({ user: currentUser });
+        }
+
+        if (path === "/api/auth/login" && method === "POST") {
+          const body = await request.json();
+          const identifier = String(body.username || body.email || "").trim().toLowerCase();
+          const password = String(body.password || "").trim();
+
+          const found = state.users.find(
+            (u) =>
+              (u.email.toLowerCase() === identifier || (u.username && u.username.toLowerCase() === identifier)) &&
+              u.password === password
+          );
+          if (!found) {
+            return jsonResponse({ detail: "Tài khoản hoặc mật khẩu không chính xác" }, 401);
+          }
+          const userPublic = {
+            id: found.id,
+            email: found.email,
+            name: found.name,
+            role: found.role,
+            avatar: found.avatar || "",
+          };
+          return jsonResponse({
+            ok: true,
+            token: createSessionToken(userPublic),
+            user: userPublic,
+          });
+        }
+
+        if (path === "/api/auth/google" && method === "POST") {
+          const body = await request.json();
+          let email = "";
+          let name = "";
+          let avatar = "";
+
+          if (body.credential) {
+            // Verify real Google ID Token via Google tokeninfo endpoint
+            const gResp = await fetch(
+              `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(body.credential)}`
+            );
+            if (!gResp.ok) {
+              return jsonResponse({ detail: "Token Google không hợp lệ" }, 401);
+            }
+            const gData = await gResp.json();
+            email = String(gData.email || "").toLowerCase();
+            name = gData.name || email.split("@")[0];
+            avatar = gData.picture || "";
+          } else if (body.email) {
+            email = String(body.email || "").trim().toLowerCase();
+            name = String(body.name || email.split("@")[0]).trim();
+            avatar = body.avatar || "";
+          }
+
+          if (!email || !email.includes("@")) {
+            return jsonResponse({ detail: "Email Google không hợp lệ" }, 400);
+          }
+
+          let userRecord = state.users.find((u) => u.email.toLowerCase() === email);
+          if (!userRecord) {
+            const maxId = state.users.reduce((m, u) => Math.max(m, u.id || 0), 0);
+            const assignedRole = ADMIN_EMAILS.has(email) ? "admin" : "user";
+            userRecord = {
+              id: maxId + 1,
+              email,
+              username: email.split("@")[0],
+              password: "",
+              name,
+              role: assignedRole,
+              provider: "google",
+              avatar,
+              created_at: nowFormatted(),
+            };
+            state.users.push(userRecord);
+            await persistState(env, state);
+          } else {
+            if (name && !userRecord.name) userRecord.name = name;
+            if (avatar) userRecord.avatar = avatar;
+            if (ADMIN_EMAILS.has(email)) userRecord.role = "admin";
+          }
+
+          const userPublic = {
+            id: userRecord.id,
+            email: userRecord.email,
+            name: userRecord.name,
+            role: userRecord.role,
+            avatar: userRecord.avatar || "",
+          };
+          return jsonResponse({
+            ok: true,
+            token: createSessionToken(userPublic),
+            user: userPublic,
+          });
+        }
+
+        // --- ADMIN USERS MANAGEMENT ---
+        if (path === "/api/admin/users" && method === "GET") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Chỉ Admin mới có quyền truy cập" }, 403);
+          }
+          const safeUsers = state.users.map((u) => ({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            role: u.role,
+            provider: u.provider || "local",
+            created_at: u.created_at || "",
+          }));
+          return jsonResponse({ users: safeUsers });
+        }
+
+        if (path.startsWith("/api/admin/users/") && method === "PUT") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Chỉ Admin mới có quyền phân quyền" }, 403);
+          }
+          const uid = Number(path.split("/")[4]);
+          const body = await request.json();
+          const target = state.users.find((u) => u.id === uid);
+          if (!target) return jsonResponse({ detail: "Không tìm thấy người dùng" }, 404);
+          target.role = body.role === "admin" ? "admin" : "user";
+          await persistState(env, state);
+          return jsonResponse({ ok: true, user: { id: target.id, email: target.email, name: target.name, role: target.role } });
+        }
 
         // 1. GET /api/status
         if (path === "/api/status" && method === "GET") {
@@ -439,8 +1095,11 @@ export default {
           return jsonResponse({ questions: list });
         }
 
-        // 3. POST /api/questions
+        // 3. POST /api/questions (Admin only)
         if (path === "/api/questions" && method === "POST") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Cần quyền Quản trị viên (Admin) để thêm câu hỏi vào ngân hàng chung" }, 403);
+          }
           const body = await request.json();
           const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 0);
           const created = {
@@ -458,8 +1117,11 @@ export default {
           return jsonResponse({ ok: true, question: created });
         }
 
-        // 4. PUT or DELETE /api/questions/:id
+        // 4. PUT or DELETE /api/questions/:id (Admin only)
         if (path.startsWith("/api/questions/")) {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Cần quyền Quản trị viên (Admin) để sửa/xóa câu hỏi gốc" }, 403);
+          }
           const qid = Number(path.split("/").pop());
           if (method === "PUT") {
             const body = await request.json();
@@ -483,8 +1145,11 @@ export default {
           }
         }
 
-        // 5. DELETE /api/exams/:id
+        // 5. DELETE /api/exams/:id (Admin only)
         if (path.startsWith("/api/exams/") && method === "DELETE") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Chỉ Admin mới có quyền xóa đề gốc" }, 403);
+          }
           const examId = Number(path.split("/").pop());
           state.questions = state.questions.filter((q) => q.exam_id !== examId);
           state.exams = state.exams.filter((e) => e.id !== examId);
@@ -571,6 +1236,7 @@ export default {
             title: body.title || "Đề lưu",
             header: body.header_info || {},
             slot_question_ids: body.slot_question_ids || {},
+            created_by: currentUser ? currentUser.email : "guest",
             created_at: nowFormatted(),
           };
           state.saved_exams.push(rec);
@@ -585,8 +1251,11 @@ export default {
           return jsonResponse({ ok: true });
         }
 
-        // 9. POST /api/qa-exam
+        // 9. POST /api/qa-exam (Admin only)
         if (path === "/api/qa-exam" && method === "POST") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Chỉ Admin mới có quyền chạy QA" }, 403);
+          }
           const body = await request.json();
           const exam = state.exams.find((e) => e.id === Number(body.exam_id));
           if (!exam) return jsonResponse({ detail: "Không tìm thấy đề" }, 404);
@@ -616,10 +1285,13 @@ export default {
         if (path === "/api/export-docx" && method === "POST") {
           const body = await request.json();
           const slotIds = body.slot_question_ids || {};
+          const customQuestions = body.custom_questions || {};
           const questionsBySlot = {};
 
           for (const [slotCode, qId] of Object.entries(slotIds)) {
-            if (qId) {
+            if (customQuestions[slotCode]) {
+              questionsBySlot[slotCode] = customQuestions[slotCode];
+            } else if (qId) {
               questionsBySlot[slotCode] = state.questions.find((q) => q.id === Number(qId)) || null;
             } else {
               questionsBySlot[slotCode] = null;

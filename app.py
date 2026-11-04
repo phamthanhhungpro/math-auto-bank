@@ -1,6 +1,9 @@
 import os
+import json
+import base64
+import urllib.request
 from typing import Dict, Any, Optional, List
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -21,6 +24,11 @@ from database import (
     save_mixed_exam_record,
     get_saved_exams,
     delete_saved_exam,
+    authenticate_local_user,
+    authenticate_or_create_google_user,
+    get_user_by_id,
+    get_all_users,
+    update_user_role,
 )
 from extractor import (
     extract_exam_from_pdf,
@@ -41,8 +49,59 @@ os.makedirs(TEMPLATES_DIR, exist_ok=True)
 
 init_db()
 
-app = FastAPI(title="MathExam Studio - Ngân Hàng & Trộn Đề Toán 10")
+app = FastAPI(title="MathBank 10 - Ngân Hàng & Trộn Đề Toán 10")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+def create_session_token(user: Dict[str, Any]) -> str:
+    payload = {
+        "id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+        "avatar": user.get("avatar") or "",
+    }
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    return "mb10." + base64.b64encode(raw).decode("ascii")
+
+
+def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
+    auth = request.headers.get("Authorization") or ""
+    if not auth.startswith("Bearer mb10."):
+        return None
+    try:
+        b64 = auth[len("Bearer mb10.") :]
+        payload = json.loads(base64.b64decode(b64).decode("utf-8"))
+        db_user = get_user_by_id(int(payload["id"]))
+        return db_user or payload
+    except Exception:
+        return None
+
+
+def require_admin(request: Request) -> Dict[str, Any]:
+    u = get_current_user(request)
+    if not u or u.get("role") != "admin":
+        raise HTTPException(
+            status_code=403, detail="Cần quyền Quản trị viên (Admin) để thực hiện thao tác này"
+        )
+    return u
+
+
+class LoginRequest(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: str
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+
+
+class RoleUpdateRequest(BaseModel):
+    role: str
 
 
 class IngestRequest(BaseModel):
@@ -85,6 +144,7 @@ class SaveExamRequest(BaseModel):
 
 class ExportDocxRequest(BaseModel):
     slot_question_ids: Dict[str, Optional[int]]
+    custom_questions: Optional[Dict[str, Any]] = None
     org_name: str = "SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI"
     school_name: str = "ĐỀ THI CHÍNH THỨC"
     exam_title: str = "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT"
@@ -101,6 +161,62 @@ def index():
         return f.read()
 
 
+@app.get("/api/auth/me")
+def api_auth_me(request: Request):
+    return {"user": get_current_user(request)}
+
+
+@app.post("/api/auth/login")
+def api_auth_login(req: LoginRequest):
+    ident = req.username or req.email or ""
+    user = authenticate_local_user(ident, req.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Tài khoản hoặc mật khẩu không chính xác")
+    return {"ok": True, "token": create_session_token(user), "user": user}
+
+
+@app.post("/api/auth/google")
+def api_auth_google(req: GoogleAuthRequest):
+    email = ""
+    name = ""
+    avatar = ""
+    if req.credential:
+        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={req.credential}"
+        try:
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                gdata = json.loads(resp.read().decode("utf-8"))
+                email = (gdata.get("email") or "").lower()
+                name = gdata.get("name") or email.split("@")[0]
+                avatar = gdata.get("picture") or ""
+        except Exception:
+            raise HTTPException(status_code=401, detail="Token Google không hợp lệ")
+    elif req.email:
+        email = req.email.strip().lower()
+        name = (req.name or email.split("@")[0]).strip()
+        avatar = req.avatar or ""
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email Google không hợp lệ")
+
+    user = authenticate_or_create_google_user(email=email, name=name, avatar=avatar)
+    return {"ok": True, "token": create_session_token(user), "user": user}
+
+
+@app.get("/api/admin/users")
+def api_admin_list_users(request: Request):
+    require_admin(request)
+    return {"users": get_all_users()}
+
+
+@app.put("/api/admin/users/{uid}/role")
+def api_admin_update_role(uid: int, req: RoleUpdateRequest, request: Request):
+    require_admin(request)
+    updated = update_user_role(uid, req.role)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+    return {"ok": True, "user": updated}
+
+
 @app.get("/api/status")
 def api_status():
     ingested = get_ingested_files()
@@ -108,9 +224,7 @@ def api_status():
 
     pdf_files = []
     if os.path.exists(GRADE10_DIR):
-        all_files = [
-            f for f in os.listdir(GRADE10_DIR) if f.lower().endswith(".pdf")
-        ]
+        all_files = [f for f in os.listdir(GRADE10_DIR) if f.lower().endswith(".pdf")]
         all_files.sort(
             key=lambda x: (
                 0 if x.startswith(("de-tuyen-sinh", "de-thi-thu")) else 1,
@@ -170,7 +284,8 @@ def api_questions(slot: Optional[str] = None):
 
 
 @app.post("/api/questions")
-def api_create_question(req: QuestionUpsertRequest):
+def api_create_question(req: QuestionUpsertRequest, request: Request):
+    require_admin(request)
     q = create_question(
         slot=req.slot,
         sub_topic=req.sub_topic,
@@ -182,7 +297,8 @@ def api_create_question(req: QuestionUpsertRequest):
 
 
 @app.put("/api/questions/{qid}")
-def api_update_question(qid: int, req: QuestionUpsertRequest):
+def api_update_question(qid: int, req: QuestionUpsertRequest, request: Request):
+    require_admin(request)
     q = update_question(
         qid=qid,
         slot=req.slot,
@@ -197,7 +313,8 @@ def api_update_question(qid: int, req: QuestionUpsertRequest):
 
 
 @app.delete("/api/questions/{qid}")
-def api_delete_question(qid: int):
+def api_delete_question(qid: int, request: Request):
+    require_admin(request)
     ok = delete_question(qid)
     if not ok:
         raise HTTPException(status_code=404, detail="Không tìm thấy câu hỏi")
@@ -205,7 +322,8 @@ def api_delete_question(qid: int):
 
 
 @app.delete("/api/exams/{exam_id}")
-def api_delete_exam(exam_id: int):
+def api_delete_exam(exam_id: int, request: Request):
+    require_admin(request)
     ok = delete_exam(exam_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề")
@@ -213,7 +331,8 @@ def api_delete_exam(exam_id: int):
 
 
 @app.post("/api/ingest")
-def api_ingest(req: IngestRequest):
+def api_ingest(req: IngestRequest, request: Request):
+    require_admin(request)
     pdf_path = os.path.join(GRADE10_DIR, req.filename)
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail=f"Không tìm thấy file {req.filename}")
@@ -230,7 +349,8 @@ def api_ingest(req: IngestRequest):
 
 
 @app.post("/api/qa-exam")
-def api_qa_exam(req: QARequest):
+def api_qa_exam(req: QARequest, request: Request):
+    require_admin(request)
     try:
         res = run_qa_on_existing_exam(
             exam_id=req.exam_id,
@@ -285,8 +405,11 @@ def api_delete_saved_exam(sid: int):
 @app.post("/api/export-docx")
 def api_export_docx(req: ExportDocxRequest):
     questions_by_slot: Dict[str, Optional[Dict[str, Any]]] = {}
+    custom = req.custom_questions or {}
     for slot_code, qid in req.slot_question_ids.items():
-        if qid is not None:
+        if slot_code in custom and custom[slot_code]:
+            questions_by_slot[slot_code] = custom[slot_code]
+        elif qid is not None:
             questions_by_slot[slot_code] = get_question_by_id(int(qid))
         else:
             questions_by_slot[slot_code] = None

@@ -20,14 +20,68 @@ var EXAM_SECTIONS = [
   { title: "B\xE0i IV (4,0 \u0111i\u1EC3m)", slots: [{ code: "IV.1", prefix: "1) " }, { code: "IV.2", prefix: "2) " }] },
   { title: "B\xE0i V (0,5 \u0111i\u1EC3m)", slots: [{ code: "V", prefix: "" }] }
 ];
+var SEEDED_USERS = [
+  {
+    id: 1,
+    email: "thanhhungsky98@gmail.com",
+    username: "admin",
+    password: "admin123",
+    name: "Hung Pham Thanh",
+    role: "admin",
+    provider: "google",
+    avatar: "",
+    created_at: "2026-11-04 08:00"
+  },
+  {
+    id: 2,
+    email: "admin@mathbank.vn",
+    username: "admin@mathbank.vn",
+    password: "admin123",
+    name: "Qu\u1EA3n tr\u1ECB vi\xEAn H\u1EC7 th\u1ED1ng",
+    role: "admin",
+    provider: "local",
+    avatar: "",
+    created_at: "2026-11-04 08:00"
+  },
+  {
+    id: 3,
+    email: "giaovien@mathbank.vn",
+    username: "giaovien",
+    password: "123456",
+    name: "C\xF4 Nguy\u1EC5n Th\u1ECB Lan (Gi\xE1o vi\xEAn)",
+    role: "user",
+    provider: "local",
+    avatar: "",
+    created_at: "2026-11-04 08:30"
+  }
+];
+var ADMIN_EMAILS = /* @__PURE__ */ new Set(["thanhhungsky98@gmail.com", "admin@mathbank.vn"]);
 var memoryState = null;
+function ensureSeededUsers(usersList) {
+  const list = Array.isArray(usersList) ? [...usersList] : [];
+  for (const su of SEEDED_USERS) {
+    if (!list.some((u) => u.email.toLowerCase() === su.email.toLowerCase())) {
+      list.push({ ...su });
+    }
+  }
+  return list;
+}
 async function getState(env) {
   if (memoryState) return memoryState;
   if (env.KV) {
     try {
-      const stored = await env.KV.get("BANK_STATE_V1", "json");
+      const stored = await env.KV.get("BANK_STATE_V2", "json");
       if (stored && Array.isArray(stored.questions)) {
+        stored.users = ensureSeededUsers(stored.users);
+        if (!Array.isArray(stored.saved_exams)) stored.saved_exams = [];
         memoryState = stored;
+        return memoryState;
+      }
+      const storedV1 = await env.KV.get("BANK_STATE_V1", "json");
+      if (storedV1 && Array.isArray(storedV1.questions)) {
+        storedV1.users = ensureSeededUsers(storedV1.users);
+        if (!Array.isArray(storedV1.saved_exams)) storedV1.saved_exams = [];
+        memoryState = storedV1;
         return memoryState;
       }
     } catch (_) {
@@ -36,14 +90,15 @@ async function getState(env) {
   memoryState = {
     exams: [...INITIAL_SEED.exams],
     questions: [...INITIAL_SEED.questions],
-    saved_exams: []
+    saved_exams: [],
+    users: ensureSeededUsers([])
   };
   return memoryState;
 }
 async function persistState(env, state) {
   memoryState = state;
   if (env.KV) {
-    await env.KV.put("BANK_STATE_V1", JSON.stringify(state));
+    await env.KV.put("BANK_STATE_V2", JSON.stringify(state));
   }
 }
 function jsonResponse(data, status = 200) {
@@ -51,13 +106,423 @@ function jsonResponse(data, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Access-Control-Allow-Origin": "*"
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
     }
   });
 }
 function nowFormatted() {
   const d = /* @__PURE__ */ new Date();
   return d.toISOString().replace("T", " ").slice(0, 16);
+}
+function createSessionToken(user) {
+  const payload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    avatar: user.avatar || "",
+    exp: Date.now() + 1e3 * 60 * 60 * 24 * 14
+    // 14 days
+  };
+  const jsonStr = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(jsonStr);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return "mb10." + btoa(bin);
+}
+function parseSessionToken(request, state) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!auth.startsWith("Bearer mb10.")) return null;
+  try {
+    const b64 = auth.slice("Bearer mb10.".length);
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    if (payload.exp && payload.exp < Date.now()) return null;
+    if (state && Array.isArray(state.users)) {
+      const dbUser = state.users.find(
+        (u) => u.id === payload.id || u.email.toLowerCase() === String(payload.email || "").toLowerCase()
+      );
+      if (dbUser) {
+        return {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: dbUser.role,
+          avatar: dbUser.avatar || ""
+        };
+      }
+    }
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+function xmlEscape(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+var LATEX_SYMBOLS = {
+  "\\cdot": "\u22C5",
+  "\\times": "\xD7",
+  "\\div": "\xF7",
+  "\\pm": "\xB1",
+  "\\mp": "\u2213",
+  "\\le": "\u2264",
+  "\\leq": "\u2264",
+  "\\ge": "\u2265",
+  "\\geq": "\u2265",
+  "\\ne": "\u2260",
+  "\\neq": "\u2260",
+  "\\approx": "\u2248",
+  "\\equiv": "\u2261",
+  "\\sim": "\u223D",
+  "\\backsim": "\u223D",
+  "\\cong": "\u2245",
+  "\\propto": "\u221D",
+  "\\infty": "\u221E",
+  "\\partial": "\u2202",
+  "\\nabla": "\u2207",
+  "\\forall": "\u2200",
+  "\\exists": "\u2203",
+  "\\emptyset": "\u2205",
+  "\\varnothing": "\u2205",
+  "\\in": "\u2208",
+  "\\notin": "\u2209",
+  "\\ni": "\u220B",
+  "\\subset": "\u2282",
+  "\\subseteq": "\u2286",
+  "\\supset": "\u2283",
+  "\\supseteq": "\u2287",
+  "\\cup": "\u222A",
+  "\\cap": "\u2229",
+  "\\setminus": "\u2216",
+  "\\Rightarrow": "\u21D2",
+  "\\implies": "\u21D2",
+  "\\Leftrightarrow": "\u21D4",
+  "\\iff": "\u21D4",
+  "\\rightarrow": "\u2192",
+  "\\to": "\u2192",
+  "\\leftarrow": "\u2190",
+  "\\leftrightarrow": "\u2194",
+  "\\mapsto": "\u21A6",
+  "\\uparrow": "\u2191",
+  "\\downarrow": "\u2193",
+  "\\perp": "\u22A5",
+  "\\parallel": "\u2225",
+  "\\angle": "\u2220",
+  "\\triangle": "\u25B3",
+  "\\square": "\u25A1",
+  "\\circ": "\xB0",
+  "\\dots": "\u2026",
+  "\\ldots": "\u2026",
+  "\\cdots": "\u22EF",
+  "\\vdots": "\u22EE",
+  "\\ddots": "\u22F1",
+  "\\alpha": "\u03B1",
+  "\\beta": "\u03B2",
+  "\\gamma": "\u03B3",
+  "\\delta": "\u03B4",
+  "\\epsilon": "\u03F5",
+  "\\varepsilon": "\u03B5",
+  "\\zeta": "\u03B6",
+  "\\eta": "\u03B7",
+  "\\theta": "\u03B8",
+  "\\vartheta": "\u03D1",
+  "\\iota": "\u03B9",
+  "\\kappa": "\u03BA",
+  "\\lambda": "\u03BB",
+  "\\mu": "\u03BC",
+  "\\nu": "\u03BD",
+  "\\xi": "\u03BE",
+  "\\pi": "\u03C0",
+  "\\rho": "\u03C1",
+  "\\sigma": "\u03C3",
+  "\\tau": "\u03C4",
+  "\\upsilon": "\u03C5",
+  "\\phi": "\u03D5",
+  "\\varphi": "\u03C6",
+  "\\chi": "\u03C7",
+  "\\psi": "\u03C8",
+  "\\omega": "\u03C9",
+  "\\Gamma": "\u0393",
+  "\\Delta": "\u0394",
+  "\\Theta": "\u0398",
+  "\\Lambda": "\u039B",
+  "\\Xi": "\u039E",
+  "\\Pi": "\u03A0",
+  "\\Sigma": "\u03A3",
+  "\\Upsilon": "\u03A5",
+  "\\Phi": "\u03A6",
+  "\\Psi": "\u03A8",
+  "\\Omega": "\u03A9",
+  "\\ell": "\u2113",
+  "\\sin": "sin",
+  "\\cos": "cos",
+  "\\tan": "tan",
+  "\\cot": "cot",
+  "\\arcsin": "arcsin",
+  "\\arccos": "arccos",
+  "\\arctan": "arctan",
+  "\\ln": "ln",
+  "\\log": "log",
+  "\\min": "min",
+  "\\max": "max",
+  "\\lim": "lim",
+  "\\{": "{",
+  "\\}": "}",
+  "\\%": "%",
+  "\\&": "&",
+  "\\_": "_",
+  "\\,": " ",
+  "\\;": " ",
+  "\\:": " ",
+  "\\!": "",
+  "\\quad": "  ",
+  "\\qquad": "    "
+};
+var MATHBB_MAP = {
+  R: "\u211D",
+  N: "\u2115",
+  Z: "\u2124",
+  Q: "\u211A",
+  C: "\u2102"
+};
+function makeMathRun(text, isNormalText = false) {
+  if (!text) return "";
+  const rPr = isNormalText ? "<m:rPr><m:nor/></m:rPr>" : "";
+  return `<m:r>${rPr}<m:t xml:space="preserve">${xmlEscape(text)}</m:t></m:r>`;
+}
+function skipSpaces(s, pos) {
+  while (pos < s.length && /\s/.test(s[pos])) pos++;
+  return pos;
+}
+function readBracedGroup(s, pos) {
+  pos = skipSpaces(s, pos);
+  if (pos >= s.length) return { content: "", nextPos: pos };
+  if (s[pos] === "{") {
+    let depth = 1;
+    let i = pos + 1;
+    while (i < s.length && depth > 0) {
+      if (s[i] === "\\" && i + 1 < s.length) {
+        i += 2;
+        continue;
+      }
+      if (s[i] === "{") depth++;
+      else if (s[i] === "}") depth--;
+      i++;
+    }
+    return { content: s.slice(pos + 1, i - 1), nextPos: i };
+  }
+  if (s[pos] === "\\") {
+    const m = s.slice(pos).match(/^\\[a-zA-Z]+|^\\./);
+    if (m) {
+      return { content: m[0], nextPos: pos + m[0].length };
+    }
+  }
+  return { content: s[pos], nextPos: pos + 1 };
+}
+function readBracketGroup(s, pos) {
+  pos = skipSpaces(s, pos);
+  if (pos >= s.length || s[pos] !== "[") return null;
+  let depth = 1;
+  let i = pos + 1;
+  while (i < s.length && depth > 0) {
+    if (s[i] === "[") depth++;
+    else if (s[i] === "]") depth--;
+    i++;
+  }
+  return { content: s.slice(pos + 1, i - 1), nextPos: i };
+}
+function parseSingleAtom(s, pos) {
+  pos = skipSpaces(s, pos);
+  if (pos >= s.length) return { xml: "", nextPos: pos };
+  if (s.startsWith("\\begin{", pos)) {
+    const envMatch = s.slice(pos).match(/^\\begin\{(cases|aligned|array|matrix|pmatrix|bmatrix)\}/);
+    if (envMatch) {
+      const envName = envMatch[1];
+      const endTag = `\\end{${envName}}`;
+      let bodyStart = pos + envMatch[0].length;
+      if (envName === "array" && s[skipSpaces(s, bodyStart)] === "{") {
+        const colSpec = readBracedGroup(s, bodyStart);
+        bodyStart = colSpec.nextPos;
+      }
+      const endIdx = s.indexOf(endTag, bodyStart);
+      if (endIdx !== -1) {
+        const body = s.slice(bodyStart, endIdx);
+        const rows = body.split(/\\\\/).map((r) => r.replace(/&/g, " ").trim()).filter(Boolean);
+        const eqRows = rows.map((r) => `<m:e>${parseLatexToOmmlNodes(r)}</m:e>`).join("");
+        const eqArr = `<m:eqArr>${eqRows || `<m:e>${makeMathRun(" ")}</m:e>`}</m:eqArr>`;
+        const xml = envName === "cases" ? `<m:d><m:dPr><m:begChr m:val="{"/><m:endChr m:val=""/></m:dPr><m:e>${eqArr}</m:e></m:d>` : eqArr;
+        return { xml, nextPos: endIdx + endTag.length };
+      }
+    }
+  }
+  if (s[pos] === "{") {
+    const grp = readBracedGroup(s, pos);
+    return { xml: parseLatexToOmmlNodes(grp.content), nextPos: grp.nextPos };
+  }
+  if (s[pos] === "\\") {
+    const cmdMatch = s.slice(pos).match(/^\\[a-zA-Z]+|^\\./);
+    if (cmdMatch) {
+      const cmd = cmdMatch[0];
+      let nextPos = pos + cmd.length;
+      if (cmd === "\\left" || cmd === "\\right" || cmd === "\\big" || cmd === "\\Big" || cmd === "\\bigg" || cmd === "\\Bigg" || cmd === "\\displaystyle" || cmd === "\\textstyle") {
+        nextPos = skipSpaces(s, nextPos);
+        if (cmd === "\\right" && s[nextPos] === ".") {
+          return { xml: "", nextPos: nextPos + 1 };
+        }
+        return parseSingleAtom(s, nextPos);
+      }
+      if (cmd === "\\frac" || cmd === "\\dfrac" || cmd === "\\tfrac") {
+        const num = readBracedGroup(s, nextPos);
+        const den = readBracedGroup(s, num.nextPos);
+        const numXml = parseLatexToOmmlNodes(num.content) || makeMathRun(" ");
+        const denXml = parseLatexToOmmlNodes(den.content) || makeMathRun(" ");
+        return {
+          xml: `<m:f><m:num>${numXml}</m:num><m:den>${denXml}</m:den></m:f>`,
+          nextPos: den.nextPos
+        };
+      }
+      if (cmd === "\\sqrt") {
+        const optDeg = readBracketGroup(s, nextPos);
+        if (optDeg) {
+          const rad = readBracedGroup(s, optDeg.nextPos);
+          const degXml = parseLatexToOmmlNodes(optDeg.content) || makeMathRun(" ");
+          const radXml = parseLatexToOmmlNodes(rad.content) || makeMathRun(" ");
+          return {
+            xml: `<m:rad><m:deg>${degXml}</m:deg><m:e>${radXml}</m:e></m:rad>`,
+            nextPos: rad.nextPos
+          };
+        } else {
+          const rad = readBracedGroup(s, nextPos);
+          const radXml = parseLatexToOmmlNodes(rad.content) || makeMathRun(" ");
+          return {
+            xml: `<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/><m:e>${radXml}</m:e></m:rad>`,
+            nextPos: rad.nextPos
+          };
+        }
+      }
+      if (cmd === "\\widehat" || cmd === "\\hat") {
+        const inner = readBracedGroup(s, nextPos);
+        const innerXml = parseLatexToOmmlNodes(inner.content) || makeMathRun(" ");
+        return {
+          xml: `<m:acc><m:accPr><m:chr m:val="&#x0302;"/></m:accPr><m:e>${innerXml}</m:e></m:acc>`,
+          nextPos: inner.nextPos
+        };
+      }
+      if (cmd === "\\vec" || cmd === "\\overrightarrow") {
+        const inner = readBracedGroup(s, nextPos);
+        const innerXml = parseLatexToOmmlNodes(inner.content) || makeMathRun(" ");
+        return {
+          xml: `<m:acc><m:accPr><m:chr m:val="&#x20D7;"/></m:accPr><m:e>${innerXml}</m:e></m:acc>`,
+          nextPos: inner.nextPos
+        };
+      }
+      if (cmd === "\\overline" || cmd === "\\bar") {
+        const inner = readBracedGroup(s, nextPos);
+        const innerXml = parseLatexToOmmlNodes(inner.content) || makeMathRun(" ");
+        return {
+          xml: `<m:bar><m:barPr><m:pos m:val="top"/></m:barPr><m:e>${innerXml}</m:e></m:bar>`,
+          nextPos: inner.nextPos
+        };
+      }
+      if (cmd === "\\text" || cmd === "\\mathrm" || cmd === "\\textbf" || cmd === "\\textit") {
+        const inner = readBracedGroup(s, nextPos);
+        return {
+          xml: makeMathRun(inner.content, true),
+          nextPos: inner.nextPos
+        };
+      }
+      if (cmd === "\\mathbb") {
+        const inner = readBracedGroup(s, nextPos);
+        const ch2 = MATHBB_MAP[inner.content.trim()] || inner.content.trim();
+        return {
+          xml: makeMathRun(ch2),
+          nextPos: inner.nextPos
+        };
+      }
+      if (cmd in LATEX_SYMBOLS) {
+        const sym = LATEX_SYMBOLS[cmd];
+        const isFunc = ["sin", "cos", "tan", "cot", "ln", "log", "min", "max", "lim"].includes(sym);
+        return {
+          xml: sym ? makeMathRun(sym, isFunc) : "",
+          nextPos
+        };
+      }
+      return {
+        xml: makeMathRun(cmd.slice(1)),
+        nextPos
+      };
+    }
+  }
+  const ch = s[pos];
+  if (ch === "}") {
+    return { xml: "", nextPos: pos + 1 };
+  }
+  return {
+    xml: makeMathRun(ch),
+    nextPos: pos + 1
+  };
+}
+function parseLatexToOmmlNodes(s) {
+  let pos = 0;
+  let outXml = "";
+  while (pos < s.length) {
+    pos = skipSpaces(s, pos);
+    if (pos >= s.length) break;
+    if (s[pos] === "^" || s[pos] === "_") {
+      const op = s[pos];
+      const grp = readBracedGroup(s, pos + 1);
+      const subOrSupXml = parseLatexToOmmlNodes(grp.content) || makeMathRun(" ");
+      if (op === "^") {
+        outXml += `<m:sSup><m:e>${makeMathRun(" ")}</m:e><m:sup>${subOrSupXml}</m:sup></m:sSup>`;
+      } else {
+        outXml += `<m:sSub><m:e>${makeMathRun(" ")}</m:e><m:sub>${subOrSupXml}</m:sub></m:sSub>`;
+      }
+      pos = grp.nextPos;
+      continue;
+    }
+    const atom = parseSingleAtom(s, pos);
+    let baseXml = atom.xml;
+    pos = atom.nextPos;
+    let subXml = null;
+    let supXml = null;
+    while (pos < s.length) {
+      const p = skipSpaces(s, pos);
+      if (p < s.length && s[p] === "^" && supXml === null) {
+        const grp = readBracedGroup(s, p + 1);
+        supXml = parseLatexToOmmlNodes(grp.content) || makeMathRun(" ");
+        pos = grp.nextPos;
+      } else if (p < s.length && s[p] === "_" && subXml === null) {
+        const grp = readBracedGroup(s, p + 1);
+        subXml = parseLatexToOmmlNodes(grp.content) || makeMathRun(" ");
+        pos = grp.nextPos;
+      } else {
+        break;
+      }
+    }
+    const safeBase = baseXml || makeMathRun(" ");
+    if (subXml !== null && supXml !== null) {
+      outXml += `<m:sSubSup><m:e>${safeBase}</m:e><m:sub>${subXml}</m:sub><m:sup>${supXml}</m:sup></m:sSubSup>`;
+    } else if (supXml !== null) {
+      outXml += `<m:sSup><m:e>${safeBase}</m:e><m:sup>${supXml}</m:sup></m:sSup>`;
+    } else if (subXml !== null) {
+      outXml += `<m:sSub><m:e>${safeBase}</m:e><m:sub>${subXml}</m:sub></m:sSub>`;
+    } else {
+      outXml += baseXml;
+    }
+  }
+  return outXml;
+}
+function latexToOmml(latexStr) {
+  const cleaned = String(latexStr || "").trim();
+  if (!cleaned) return "";
+  const innerNodes = parseLatexToOmmlNodes(cleaned);
+  if (!innerNodes) return "";
+  return `<m:oMath>${innerNodes}</m:oMath>`;
 }
 var CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -151,23 +616,35 @@ function createZip(files) {
   out.set(eocd, pos);
   return out;
 }
-function xmlEscape(str) {
-  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function latexToReadableText(str) {
-  if (!str) return "";
-  let s = str.replace(/\$\s*(\[[^\$\]]+?\))\s*\$/g, "$1");
-  s = s.replace(/\$\$([\s\S]*?)\$\$/g, "$1").replace(/\$([^\$]+?)\$/g, "$1");
-  s = s.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)").replace(/\\sqrt\{([^{}]+)\}/g, "\u221A($1)").replace(/\\sqrt\s*([a-zA-Z0-9])/g, "\u221A$1").replace(/\\Delta/g, "\u0394").replace(/\\pi/g, "\u03C0").replace(/\\alpha/g, "\u03B1").replace(/\\beta/g, "\u03B2").replace(/\\gamma/g, "\u03B3").replace(/\\le\b|\\leq\b/g, "\u2264").replace(/\\ge\b|\\geq\b/g, "\u2265").replace(/\\ne\b|\\neq\b/g, "\u2260").replace(/\\approx\b/g, "\u2248").replace(/\\pm\b/g, "\xB1").replace(/\\cdot\b/g, "\xB7").replace(/\\times\b/g, "\xD7").replace(/\\div\b/g, ":").replace(/\\infty\b/g, "\u221E").replace(/\\perp\b/g, "\u22A5").replace(/\\parallel\b/g, "\u2225").replace(/\\angle\b|\\widehat\b/g, "\u2220").replace(/\\triangle\b/g, "\u25B3").replace(/\\in\b/g, "\u2208").replace(/\\subset\b/g, "\u2282").replace(/\\cup\b/g, "\u222A").replace(/\\cap\b/g, "\u2229").replace(/\\Rightarrow\b/g, "\u21D2").replace(/\\Leftrightarrow\b/g, "\u21D4").replace(/\^\{2\}|\^2\b/g, "\xB2").replace(/\^\{3\}|\^3\b/g, "\xB3").replace(/\^\{0\}|\^\\circ/g, "\xB0").replace(/\\left|\\right/g, "").replace(/\\text\{([^{}]*)\}/g, "$1").replace(/\{([^{}]*)\}/g, "$1");
-  return s;
-}
-function makeParagraphXml(text, opts = {}) {
-  const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : `<w:jc w:val="both"/>`;
+function makeTextRunXml(text, opts = {}) {
+  if (!text) return "";
   const bold = opts.bold ? "<w:b/>" : "";
   const italic = opts.italic ? "<w:i/>" : "";
   const sz = opts.sz || 26;
-  const prefixXml = opts.prefix ? `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(opts.prefix)}</w:t></w:r>` : "";
-  return `<w:p><w:pPr><w:spacing w:before="40" w:after="60" w:line="276" w:lineRule="auto"/>${align}</w:pPr>${prefixXml}<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>${bold}${italic}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+  return `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>${bold}${italic}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
+}
+function makeRichParagraphXml(text, opts = {}) {
+  const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : `<w:jc w:val="both"/>`;
+  const sz = opts.sz || 26;
+  let innerXml = "";
+  if (opts.prefix) {
+    innerXml += makeTextRunXml(opts.prefix, { bold: true, sz });
+  }
+  const cleaned = String(text || "").replace(/\$\s*(\[[^\$\]]+?\))\s*\$/g, "$1");
+  const segments = cleaned.split(/(\$\$[\s\S]+?\$\$|\$[^\$]+?\$)/g);
+  for (const seg of segments) {
+    if (!seg) continue;
+    if (seg.startsWith("$$") && seg.endsWith("$$") && seg.length > 4) {
+      const mathXml = latexToOmml(seg.slice(2, -2));
+      innerXml += mathXml || makeTextRunXml(seg.slice(2, -2), opts);
+    } else if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
+      const mathXml = latexToOmml(seg.slice(1, -1));
+      innerXml += mathXml || makeTextRunXml(seg.slice(1, -1), opts);
+    } else {
+      innerXml += makeTextRunXml(seg, opts);
+    }
+  }
+  return `<w:p><w:pPr><w:spacing w:before="40" w:after="60" w:line="276" w:lineRule="auto"/>${align}</w:pPr>${innerXml}</w:p>`;
 }
 function makeTableXml(htmlTable) {
   const trMatches = [...htmlTable.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
@@ -179,8 +656,8 @@ function makeTableXml(htmlTable) {
     let cellsXml = "";
     for (const c of cells) {
       const isTh = c[1].toLowerCase() === "th";
-      const cellText = latexToReadableText(c[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-      cellsXml += `<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr>${makeParagraphXml(cellText, { align: "center", bold: isTh, sz: 24 })}</w:tc>`;
+      const cellText = c[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      cellsXml += `<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr>${makeRichParagraphXml(cellText, { align: "center", bold: isTh, sz: 24 })}</w:tc>`;
     }
     rowsXml += `<w:tr>${cellsXml}</w:tr>`;
   }
@@ -196,16 +673,16 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   const relEntries = [];
   let bodyXml = "";
   let imgCounter = 1;
-  bodyXml += makeParagraphXml(`${headerInfo.org_name} \u2014 ${headerInfo.school_name}`, { align: "center", bold: true, sz: 24 });
-  bodyXml += makeParagraphXml(`${headerInfo.exam_title} (N\u0103m h\u1ECDc ${headerInfo.academic_year})`, { align: "center", bold: true, sz: 26 });
-  bodyXml += makeParagraphXml(`M\xF4n: TO\xC1N \u2014 M\xE3 \u0111\u1EC1: ${headerInfo.exam_code} \u2014 Th\u1EDDi gian: ${headerInfo.duration}`, { align: "center", italic: true, sz: 22 });
+  bodyXml += makeRichParagraphXml(`${headerInfo.org_name} \u2014 ${headerInfo.school_name}`, { align: "center", bold: true, sz: 24 });
+  bodyXml += makeRichParagraphXml(`${headerInfo.exam_title} (N\u0103m h\u1ECDc ${headerInfo.academic_year})`, { align: "center", bold: true, sz: 26 });
+  bodyXml += makeRichParagraphXml(`M\xF4n: TO\xC1N \u2014 M\xE3 \u0111\u1EC1: ${headerInfo.exam_code} \u2014 Th\u1EDDi gian: ${headerInfo.duration}`, { align: "center", italic: true, sz: 22 });
   for (const sec of EXAM_SECTIONS) {
-    bodyXml += makeParagraphXml(sec.title, { bold: true, sz: 26 });
+    bodyXml += makeRichParagraphXml(sec.title, { bold: true, sz: 26 });
     for (const slotObj of sec.slots) {
       const q = questionsBySlot[slotObj.code];
       if (!q) continue;
       let imgRelId = null;
-      if (q.figure_path && env.ASSETS) {
+      if (q.figure_path) {
         try {
           let imgBytes = null;
           if (q.figure_path.startsWith("data:image/")) {
@@ -215,8 +692,8 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
             for (let i = 0; i < binStr.length; i++) imgBytes[i] = binStr.charCodeAt(i);
           } else {
             const assetUrl = new URL(q.figure_path, reqUrl);
-            const assetResp = await env.ASSETS.fetch(new Request(assetUrl));
-            if (assetResp.ok) {
+            const assetResp = env.ASSETS ? await env.ASSETS.fetch(new Request(assetUrl)) : await fetch(assetUrl);
+            if (assetResp && assetResp.ok) {
               imgBytes = new Uint8Array(await assetResp.arrayBuffer());
             }
           }
@@ -248,8 +725,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
           for (const ln of lines) {
             const t = ln.trim();
             if (!t) continue;
-            const readable = latexToReadableText(t);
-            bodyXml += makeParagraphXml(readable, { prefix: firstLine ? slotObj.prefix : "" });
+            bodyXml += makeRichParagraphXml(t, { prefix: firstLine ? slotObj.prefix : "" });
             firstLine = false;
           }
         }
@@ -259,15 +735,15 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
       }
     }
   }
-  bodyXml += makeParagraphXml("-------------------- H\u1EBET --------------------", { align: "center", bold: true, sz: 24 });
+  bodyXml += makeRichParagraphXml("-------------------- H\u1EBET --------------------", { align: "center", bold: true, sz: 24 });
   if (includeSolutions) {
     bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
-    bodyXml += makeParagraphXml(`\u0110\xC1P \xC1N & H\u01AF\u1EDANG D\u1EAAN CH\u1EA4M \u2014 M\xC3 \u0110\u1EC0 ${headerInfo.exam_code}`, { align: "center", bold: true, sz: 26 });
+    bodyXml += makeRichParagraphXml(`\u0110\xC1P \xC1N & H\u01AF\u1EDANG D\u1EAAN CH\u1EA4M \u2014 M\xC3 \u0110\u1EC0 ${headerInfo.exam_code}`, { align: "center", bold: true, sz: 26 });
     for (const s of EXAM_SLOTS) {
       const q = questionsBySlot[s.code];
       if (!q) continue;
-      const sol = latexToReadableText(q.solution || "Xem l\u1EDDi gi\u1EA3i chi ti\u1EBFt.");
-      bodyXml += makeParagraphXml(`[${q.source_name}] ${sol}`, { prefix: `C\xE2u ${s.code}: ` });
+      const sol = q.solution || "Xem l\u1EDDi gi\u1EA3i chi ti\u1EBFt.";
+      bodyXml += makeRichParagraphXml(`[${q.source_name}] ${sol}`, { prefix: `C\xE2u ${s.code}: ` });
     }
   }
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -287,6 +763,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
 </Relationships>`;
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
             xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
   <w:body>
@@ -311,9 +788,124 @@ var worker_default = {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
+    if (method === "OPTIONS") {
+      return jsonResponse({ ok: true });
+    }
     try {
       if (path.startsWith("/api/")) {
         const state = await getState(env);
+        const currentUser = parseSessionToken(request, state);
+        if (path === "/api/auth/me" && method === "GET") {
+          return jsonResponse({ user: currentUser });
+        }
+        if (path === "/api/auth/login" && method === "POST") {
+          const body = await request.json();
+          const identifier = String(body.username || body.email || "").trim().toLowerCase();
+          const password = String(body.password || "").trim();
+          const found = state.users.find(
+            (u) => (u.email.toLowerCase() === identifier || u.username && u.username.toLowerCase() === identifier) && u.password === password
+          );
+          if (!found) {
+            return jsonResponse({ detail: "T\xE0i kho\u1EA3n ho\u1EB7c m\u1EADt kh\u1EA9u kh\xF4ng ch\xEDnh x\xE1c" }, 401);
+          }
+          const userPublic = {
+            id: found.id,
+            email: found.email,
+            name: found.name,
+            role: found.role,
+            avatar: found.avatar || ""
+          };
+          return jsonResponse({
+            ok: true,
+            token: createSessionToken(userPublic),
+            user: userPublic
+          });
+        }
+        if (path === "/api/auth/google" && method === "POST") {
+          const body = await request.json();
+          let email = "";
+          let name = "";
+          let avatar = "";
+          if (body.credential) {
+            const gResp = await fetch(
+              `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(body.credential)}`
+            );
+            if (!gResp.ok) {
+              return jsonResponse({ detail: "Token Google kh\xF4ng h\u1EE3p l\u1EC7" }, 401);
+            }
+            const gData = await gResp.json();
+            email = String(gData.email || "").toLowerCase();
+            name = gData.name || email.split("@")[0];
+            avatar = gData.picture || "";
+          } else if (body.email) {
+            email = String(body.email || "").trim().toLowerCase();
+            name = String(body.name || email.split("@")[0]).trim();
+            avatar = body.avatar || "";
+          }
+          if (!email || !email.includes("@")) {
+            return jsonResponse({ detail: "Email Google kh\xF4ng h\u1EE3p l\u1EC7" }, 400);
+          }
+          let userRecord = state.users.find((u) => u.email.toLowerCase() === email);
+          if (!userRecord) {
+            const maxId = state.users.reduce((m, u) => Math.max(m, u.id || 0), 0);
+            const assignedRole = ADMIN_EMAILS.has(email) ? "admin" : "user";
+            userRecord = {
+              id: maxId + 1,
+              email,
+              username: email.split("@")[0],
+              password: "",
+              name,
+              role: assignedRole,
+              provider: "google",
+              avatar,
+              created_at: nowFormatted()
+            };
+            state.users.push(userRecord);
+            await persistState(env, state);
+          } else {
+            if (name && !userRecord.name) userRecord.name = name;
+            if (avatar) userRecord.avatar = avatar;
+            if (ADMIN_EMAILS.has(email)) userRecord.role = "admin";
+          }
+          const userPublic = {
+            id: userRecord.id,
+            email: userRecord.email,
+            name: userRecord.name,
+            role: userRecord.role,
+            avatar: userRecord.avatar || ""
+          };
+          return jsonResponse({
+            ok: true,
+            token: createSessionToken(userPublic),
+            user: userPublic
+          });
+        }
+        if (path === "/api/admin/users" && method === "GET") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Ch\u1EC9 Admin m\u1EDBi c\xF3 quy\u1EC1n truy c\u1EADp" }, 403);
+          }
+          const safeUsers = state.users.map((u) => ({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            role: u.role,
+            provider: u.provider || "local",
+            created_at: u.created_at || ""
+          }));
+          return jsonResponse({ users: safeUsers });
+        }
+        if (path.startsWith("/api/admin/users/") && method === "PUT") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Ch\u1EC9 Admin m\u1EDBi c\xF3 quy\u1EC1n ph\xE2n quy\u1EC1n" }, 403);
+          }
+          const uid = Number(path.split("/")[4]);
+          const body = await request.json();
+          const target = state.users.find((u) => u.id === uid);
+          if (!target) return jsonResponse({ detail: "Kh\xF4ng t\xECm th\u1EA5y ng\u01B0\u1EDDi d\xF9ng" }, 404);
+          target.role = body.role === "admin" ? "admin" : "user";
+          await persistState(env, state);
+          return jsonResponse({ ok: true, user: { id: target.id, email: target.email, name: target.name, role: target.role } });
+        }
         if (path === "/api/status" && method === "GET") {
           const slotCounts = {};
           for (const s of EXAM_SLOTS) slotCounts[s.code] = 0;
@@ -354,6 +946,9 @@ var worker_default = {
           return jsonResponse({ questions: list });
         }
         if (path === "/api/questions" && method === "POST") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "C\u1EA7n quy\u1EC1n Qu\u1EA3n tr\u1ECB vi\xEAn (Admin) \u0111\u1EC3 th\xEAm c\xE2u h\u1ECFi v\xE0o ng\xE2n h\xE0ng chung" }, 403);
+          }
           const body = await request.json();
           const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 0);
           const created = {
@@ -371,6 +966,9 @@ var worker_default = {
           return jsonResponse({ ok: true, question: created });
         }
         if (path.startsWith("/api/questions/")) {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "C\u1EA7n quy\u1EC1n Qu\u1EA3n tr\u1ECB vi\xEAn (Admin) \u0111\u1EC3 s\u1EEDa/x\xF3a c\xE2u h\u1ECFi g\u1ED1c" }, 403);
+          }
           const qid = Number(path.split("/").pop());
           if (method === "PUT") {
             const body = await request.json();
@@ -394,6 +992,9 @@ var worker_default = {
           }
         }
         if (path.startsWith("/api/exams/") && method === "DELETE") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Ch\u1EC9 Admin m\u1EDBi c\xF3 quy\u1EC1n x\xF3a \u0111\u1EC1 g\u1ED1c" }, 403);
+          }
           const examId = Number(path.split("/").pop());
           state.questions = state.questions.filter((q) => q.exam_id !== examId);
           state.exams = state.exams.filter((e) => e.id !== examId);
@@ -464,6 +1065,7 @@ var worker_default = {
             title: body.title || "\u0110\u1EC1 l\u01B0u",
             header: body.header_info || {},
             slot_question_ids: body.slot_question_ids || {},
+            created_by: currentUser ? currentUser.email : "guest",
             created_at: nowFormatted()
           };
           state.saved_exams.push(rec);
@@ -477,6 +1079,9 @@ var worker_default = {
           return jsonResponse({ ok: true });
         }
         if (path === "/api/qa-exam" && method === "POST") {
+          if (!currentUser || currentUser.role !== "admin") {
+            return jsonResponse({ detail: "Ch\u1EC9 Admin m\u1EDBi c\xF3 quy\u1EC1n ch\u1EA1y QA" }, 403);
+          }
           const body = await request.json();
           const exam = state.exams.find((e) => e.id === Number(body.exam_id));
           if (!exam) return jsonResponse({ detail: "Kh\xF4ng t\xECm th\u1EA5y \u0111\u1EC1" }, 404);
@@ -504,9 +1109,12 @@ var worker_default = {
         if (path === "/api/export-docx" && method === "POST") {
           const body = await request.json();
           const slotIds = body.slot_question_ids || {};
+          const customQuestions = body.custom_questions || {};
           const questionsBySlot = {};
           for (const [slotCode, qId] of Object.entries(slotIds)) {
-            if (qId) {
+            if (customQuestions[slotCode]) {
+              questionsBySlot[slotCode] = customQuestions[slotCode];
+            } else if (qId) {
               questionsBySlot[slotCode] = state.questions.find((q) => q.id === Number(qId)) || null;
             } else {
               questionsBySlot[slotCode] = null;

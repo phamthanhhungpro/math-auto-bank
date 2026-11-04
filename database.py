@@ -63,6 +63,34 @@ def init_db():
             created_at TEXT
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            username TEXT,
+            password TEXT,
+            name TEXT,
+            role TEXT DEFAULT 'user',
+            provider TEXT DEFAULT 'local',
+            avatar TEXT DEFAULT '',
+            created_at TEXT
+        )
+    """)
+    # Seed default Admin and User accounts
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    seeded = [
+        ("thanhhungsky98@gmail.com", "admin", "admin123", "Hung Pham Thanh", "admin", "google"),
+        ("admin@mathbank.vn", "admin@mathbank.vn", "admin123", "Quản trị viên Hệ thống", "admin", "local"),
+        ("giaovien@mathbank.vn", "giaovien", "123456", "Cô Nguyễn Thị Lan (Giáo viên)", "user", "local"),
+    ]
+    for email, uname, pwd, name, role, prov in seeded:
+        cur.execute(
+            """
+            INSERT OR IGNORE INTO users (email, username, password, name, role, provider, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (email, uname, pwd, name, role, prov, now),
+        )
     conn.commit()
     conn.close()
 
@@ -361,3 +389,82 @@ def delete_saved_exam(sid: int) -> bool:
     conn.commit()
     conn.close()
     return deleted
+
+
+ADMIN_EMAILS = {"thanhhungsky98@gmail.com", "admin@mathbank.vn"}
+
+
+def authenticate_local_user(identifier: str, password: str) -> Optional[Dict[str, Any]]:
+    ident = (identifier or "").strip().lower()
+    pwd = (password or "").strip()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, email, username, name, role, provider, avatar FROM users WHERE (LOWER(email) = ? OR LOWER(username) = ?) AND password = ?",
+        (ident, ident, pwd),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def authenticate_or_create_google_user(email: str, name: str, avatar: str = "") -> Dict[str, Any]:
+    clean_email = (email or "").strip().lower()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, email, username, name, role, provider, avatar FROM users WHERE LOWER(email) = ?", (clean_email,))
+    row = cur.fetchone()
+    if row:
+        u = dict(row)
+        if clean_email in ADMIN_EMAILS and u["role"] != "admin":
+            cur.execute("UPDATE users SET role = 'admin' WHERE id = ?", (u["id"],))
+            conn.commit()
+            u["role"] = "admin"
+        conn.close()
+        return u
+
+    role = "admin" if clean_email in ADMIN_EMAILS else "user"
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    uname = clean_email.split("@")[0]
+    cur.execute(
+        """
+        INSERT INTO users (email, username, password, name, role, provider, avatar, created_at)
+        VALUES (?, ?, '', ?, ?, 'google', ?, ?)
+        """,
+        (clean_email, uname, name or uname, role, avatar or "", now),
+    )
+    new_id = cur.lastrowid
+    conn.commit()
+    cur.execute("SELECT id, email, username, name, role, provider, avatar FROM users WHERE id = ?", (new_id,))
+    created = dict(cur.fetchone())
+    conn.close()
+    return created
+
+
+def get_user_by_id(uid: int) -> Optional[Dict[str, Any]]:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, email, username, name, role, provider, avatar FROM users WHERE id = ?", (uid,))
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_all_users() -> List[Dict[str, Any]]:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, email, username, name, role, provider, avatar, created_at FROM users ORDER BY id ASC")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def update_user_role(uid: int, role: str) -> Optional[Dict[str, Any]]:
+    new_role = "admin" if role == "admin" else "user"
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, uid))
+    conn.commit()
+    conn.close()
+    return get_user_by_id(uid)
+
