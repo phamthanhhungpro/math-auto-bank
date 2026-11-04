@@ -2509,7 +2509,7 @@
                   <span>Loại đề thi / Giai đoạn</span>
                   <span id="categoryBadgeLabel" class="role-badge" style="background:#dbeafe; color:#1e3a8a; font-size:10px;">Tuyển sinh 10</span>
                 </label>
-                <select class="select" id="examCategorySelect" onchange="onExamCategoryChange(this.value)">
+                <select class="select" id="examCategorySelect" onchange="onExamCategoryChange(this.value, true)">
                   <option value="vao_10">Tuyển sinh vào Lớp 10 THPT (120 phút)</option>
                   <option value="giua_hk1">Khảo sát Giữa Học Kì 1 (90 phút)</option>
                   <option value="cuoi_hk1">Kiểm tra Cuối Học Kì 1 (90 phút)</option>
@@ -3036,7 +3036,7 @@
       return `<span class="role-badge" style="background:${p.badgeBg}; color:${p.badgeColor}; font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; white-space:nowrap;">${p.badge}</span>`;
     }
 
-    function onExamCategoryChange(catId, doMix = false) {
+    function onExamCategoryChange(catId, doMix = true) {
       currentCategory = catId;
       const selectEl = document.getElementById("examCategorySelect");
       if (selectEl) selectEl.value = catId;
@@ -3585,6 +3585,7 @@
               <div class="slot-bar">
                 <div class="slot-bar-meta">
                   <span class="slot-pill-code">Câu ${code}</span>
+                  ${getCategoryBadge(q.category || currentCategory || 'vao_10')}
                   ${q.sub_topic ? `<span class="slot-pill-topic">${q.sub_topic}</span>` : ""}
                   <span class="slot-pill-source" title="${q.source_name}">${q.source_name}</span>
                 </div>
@@ -3697,7 +3698,12 @@
 
     function renderPickerItems() {
       const kw = (document.getElementById("pickerSearchInput").value || "").trim().toLowerCase();
-      const pool = allQuestionsBySlot[activePickerSlot] || [];
+      let pool = allQuestionsBySlot[activePickerSlot] || [];
+      if (currentCategory && currentCategory !== "all") {
+        const inCat = pool.filter(q => (q.category || "vao_10") === currentCategory);
+        const others = pool.filter(q => (q.category || "vao_10") !== currentCategory);
+        pool = [...inCat, ...others];
+      }
       const filtered = pool.filter(q => {
         if (!kw) return true;
         return (

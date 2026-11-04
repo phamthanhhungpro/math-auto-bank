@@ -185,9 +185,15 @@ async function getState(env) {
   if (memoryState) return memoryState;
   if (env.KV) {
     try {
-      const stored = await env.KV.get("BANK_STATE_V3", "json");
+      const stored = await env.KV.get("BANK_STATE_V4", "json");
       if (stored && Array.isArray(stored.questions)) {
         memoryState = syncStateWithSeed(stored);
+        return memoryState;
+      }
+      // Fallback check V3
+      const storedV3 = await env.KV.get("BANK_STATE_V3", "json");
+      if (storedV3 && Array.isArray(storedV3.questions)) {
+        memoryState = syncStateWithSeed(storedV3);
         return memoryState;
       }
       // Fallback check V2
@@ -220,7 +226,7 @@ async function getState(env) {
 async function persistState(env, state) {
   memoryState = state;
   if (env.KV) {
-    await env.KV.put("BANK_STATE_V3", JSON.stringify(state));
+    await env.KV.put("BANK_STATE_V4", JSON.stringify(state));
   }
 }
 
@@ -1520,7 +1526,11 @@ export default {
         // 7. POST /api/swap
         if (path === "/api/swap" && method === "POST") {
           const body = await request.json();
-          const candidates = state.questions.filter((q) => q.slot === body.slot);
+          let candidates = state.questions.filter((q) => q.slot === body.slot);
+          if (body.category && body.category !== "all") {
+            const inCat = candidates.filter((q) => (q.category || "vao_10") === body.category);
+            if (inCat.length > 0) candidates = inCat;
+          }
           if (!candidates.length) return jsonResponse({ detail: "Không có câu hỏi" }, 404);
           const others = candidates.filter((q) => q.id !== body.current_id);
           const pool = others.length ? others : candidates;
