@@ -1,0 +1,15 @@
+{
+  "name": "math-auto-bank",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ngân hàng đề & Trộn đề Toán 10 Hà Nội (Cloudflare Workers + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:seed:local": "wrangler d1 execute math-auto-bank-db --local --file=migrations/0001_init.sql",
+    "db:seed:remote": "wrangler d1 execute math-auto-bank-db --remote --file=migrations/0001_init.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
