@@ -6,7 +6,6 @@ compatibility_date = "2025-02-01"
 directory = "./public"
 binding = "ASSETS"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "math-auto-bank-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+[[kv_namespaces]]
+binding = "KV"
+id = "e43707d25af24e16a42f1ac1709c5df9"

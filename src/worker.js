@@ -1,3 +1,5 @@
+import { INITIAL_SEED } from "./seed_data.js";
+
 const EXAM_SLOTS = [
   { code: "I.1", group: "Bài I (1,5 điểm)", label: "Thống kê (Bảng / Biểu đồ)", points: "0,75 - 1,0đ" },
   { code: "I.2", group: "Bài I (1,5 điểm)", label: "Xác suất của biến cố", points: "0,5 - 0,75đ" },
@@ -17,6 +19,34 @@ const EXAM_SECTIONS = [
   { title: "Bài IV (4,0 điểm)", slots: [{ code: "IV.1", prefix: "1) " }, { code: "IV.2", prefix: "2) " }] },
   { title: "Bài V (0,5 điểm)", slots: [{ code: "V", prefix: "" }] },
 ];
+
+let memoryState = null;
+
+async function getState(env) {
+  if (memoryState) return memoryState;
+  if (env.KV) {
+    try {
+      const stored = await env.KV.get("BANK_STATE_V1", "json");
+      if (stored && Array.isArray(stored.questions)) {
+        memoryState = stored;
+        return memoryState;
+      }
+    } catch (_) {}
+  }
+  memoryState = {
+    exams: [...INITIAL_SEED.exams],
+    questions: [...INITIAL_SEED.questions],
+    saved_exams: [],
+  };
+  return memoryState;
+}
+
+async function persistState(env, state) {
+  memoryState = state;
+  if (env.KV) {
+    await env.KV.put("BANK_STATE_V1", JSON.stringify(state));
+  }
+}
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -70,8 +100,8 @@ function createZip(files) {
     const lv = new DataView(localHeader.buffer);
     lv.setUint32(0, 0x04034b50, true);
     lv.setUint16(4, 20, true);
-    lv.setUint16(6, 0x0800, true); // UTF-8 flag
-    lv.setUint16(8, 0, true); // STORE (0)
+    lv.setUint16(6, 0x0800, true);
+    lv.setUint16(8, 0, true);
     lv.setUint16(10, 0, true);
     lv.setUint16(12, 0x2100, true);
     lv.setUint32(14, crc, true);
@@ -189,7 +219,7 @@ function makeParagraphXml(text, opts = {}) {
   const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : `<w:jc w:val="both"/>`;
   const bold = opts.bold ? "<w:b/>" : "";
   const italic = opts.italic ? "<w:i/>" : "";
-  const sz = opts.sz || 26; // 13pt
+  const sz = opts.sz || 26;
   const prefixXml = opts.prefix
     ? `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(opts.prefix)}</w:t></w:r>`
     : "";
@@ -215,8 +245,8 @@ function makeTableXml(htmlTable) {
 }
 
 function makeImageDrawingXml(relId, docPrId) {
-  const cx = 2400000; // ~6.6cm
-  const cy = 1650000; // ~4.5cm
+  const cx = 2400000;
+  const cy = 1650000;
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="Picture ${docPrId}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="image${docPrId}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
@@ -356,286 +386,273 @@ export default {
     const method = request.method;
 
     try {
-      // 1. GET /api/status
-      if (path === "/api/status" && method === "GET") {
-        const [{ results: slotRows }, { results: examRows }, { results: savedRows }] = await Promise.all([
-          env.DB.prepare("SELECT slot, COUNT(*) as cnt FROM questions GROUP BY slot").all(),
-          env.DB.prepare(
-            "SELECT e.*, (SELECT COUNT(*) FROM questions q WHERE q.exam_id = e.id) as question_count FROM exams e ORDER BY e.id DESC"
-          ).all(),
-          env.DB.prepare("SELECT COUNT(*) as cnt FROM saved_exams").all(),
-        ]);
+      if (path.startsWith("/api/")) {
+        const state = await getState(env);
 
-        const slotCounts = {};
-        for (const s of EXAM_SLOTS) slotCounts[s.code] = 0;
-        let totalQuestions = 0;
-        for (const r of slotRows) {
-          slotCounts[r.slot] = r.cnt;
-          totalQuestions += r.cnt;
+        // 1. GET /api/status
+        if (path === "/api/status" && method === "GET") {
+          const slotCounts = {};
+          for (const s of EXAM_SLOTS) slotCounts[s.code] = 0;
+          const examQCounts = {};
+          for (const q of state.questions) {
+            slotCounts[q.slot] = (slotCounts[q.slot] || 0) + 1;
+            if (q.exam_id) examQCounts[q.exam_id] = (examQCounts[q.exam_id] || 0) + 1;
+          }
+
+          const pdfFiles = [...state.exams]
+            .sort((a, b) => b.id - a.id)
+            .map((e) => ({
+              filename: e.filename,
+              ingested: true,
+              school_name: e.school_name,
+              academic_year: e.academic_year,
+              ingested_at: e.ingested_at,
+              question_count: examQCounts[e.id] || 0,
+              exam_id: e.id,
+            }));
+
+          return jsonResponse({
+            slots: EXAM_SLOTS,
+            slot_counts: slotCounts,
+            total_questions: state.questions.length,
+            total_pdf_files: pdfFiles.length,
+            total_ingested_exams: state.exams.length,
+            saved_exams_count: (state.saved_exams || []).length,
+            pdf_files: pdfFiles,
+          });
         }
 
-        const pdfFiles = examRows.map((e) => ({
-          filename: e.filename,
-          ingested: true,
-          school_name: e.school_name,
-          academic_year: e.academic_year,
-          ingested_at: e.ingested_at,
-          question_count: e.question_count,
-          exam_id: e.id,
-        }));
-
-        return jsonResponse({
-          slots: EXAM_SLOTS,
-          slot_counts: slotCounts,
-          total_questions: totalQuestions,
-          total_pdf_files: pdfFiles.length,
-          total_ingested_exams: examRows.length,
-          saved_exams_count: savedRows[0]?.cnt || 0,
-          pdf_files: pdfFiles,
-        });
-      }
-
-      // 2. GET /api/questions
-      if (path === "/api/questions" && method === "GET") {
-        const slot = url.searchParams.get("slot");
-        const search = url.searchParams.get("search");
-        let sql = "SELECT * FROM questions WHERE 1=1";
-        const binds = [];
-        if (slot) {
-          sql += " AND slot = ?";
-          binds.push(slot);
+        // 2. GET /api/questions
+        if (path === "/api/questions" && method === "GET") {
+          const slot = url.searchParams.get("slot");
+          const search = (url.searchParams.get("search") || "").trim().toLowerCase();
+          let list = [...state.questions].sort((a, b) => b.id - a.id);
+          if (slot) list = list.filter((q) => q.slot === slot);
+          if (search) {
+            list = list.filter(
+              (q) =>
+                String(q.content || "").toLowerCase().includes(search) ||
+                String(q.sub_topic || "").toLowerCase().includes(search) ||
+                String(q.source_name || "").toLowerCase().includes(search)
+            );
+          }
+          return jsonResponse({ questions: list });
         }
-        if (search && search.trim()) {
-          sql += " AND (content LIKE ? OR sub_topic LIKE ? OR source_name LIKE ?)";
-          const kw = `%${search.trim()}%`;
-          binds.push(kw, kw, kw);
-        }
-        sql += " ORDER BY id DESC";
-        const { results } = await env.DB.prepare(sql).bind(...binds).all();
-        return jsonResponse({ questions: results });
-      }
 
-      // 3. POST /api/questions
-      if (path === "/api/questions" && method === "POST") {
-        const body = await request.json();
-        const res = await env.DB.prepare(
-          "INSERT INTO questions (exam_id, slot, sub_topic, content, figure_path, solution, source_name) VALUES (NULL, ?, ?, ?, NULL, ?, ?)"
-        )
-          .bind(
-            body.slot || "I.1",
-            body.sub_topic || "",
-            body.content || "",
-            body.solution || "",
-            body.source_name || "Tự soạn"
-          )
-          .run();
-
-        const newId = res.meta.last_row_id;
-        const created = await env.DB.prepare("SELECT * FROM questions WHERE id = ?").bind(newId).first();
-        return jsonResponse({ ok: true, question: created });
-      }
-
-      // 4. PUT or DELETE /api/questions/:id
-      if (path.startsWith("/api/questions/")) {
-        const qid = Number(path.split("/").pop());
-        if (method === "PUT") {
+        // 3. POST /api/questions
+        if (path === "/api/questions" && method === "POST") {
           const body = await request.json();
-          await env.DB.prepare(
-            "UPDATE questions SET slot = ?, sub_topic = ?, content = ?, solution = ?, source_name = ? WHERE id = ?"
-          )
-            .bind(body.slot, body.sub_topic || "", body.content, body.solution || "", body.source_name || "", qid)
-            .run();
-          const updated = await env.DB.prepare("SELECT * FROM questions WHERE id = ?").bind(qid).first();
-          return jsonResponse({ ok: true, question: updated });
+          const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 0);
+          const created = {
+            id: maxId + 1,
+            exam_id: null,
+            slot: body.slot || "I.1",
+            sub_topic: body.sub_topic || "",
+            content: body.content || "",
+            figure_path: null,
+            solution: body.solution || "",
+            source_name: body.source_name || "Tự soạn",
+          };
+          state.questions.push(created);
+          await persistState(env, state);
+          return jsonResponse({ ok: true, question: created });
         }
-        if (method === "DELETE") {
-          await env.DB.prepare("DELETE FROM questions WHERE id = ?").bind(qid).run();
+
+        // 4. PUT or DELETE /api/questions/:id
+        if (path.startsWith("/api/questions/")) {
+          const qid = Number(path.split("/").pop());
+          if (method === "PUT") {
+            const body = await request.json();
+            const idx = state.questions.findIndex((q) => q.id === qid);
+            if (idx === -1) return jsonResponse({ detail: "Không tìm thấy câu hỏi" }, 404);
+            state.questions[idx] = {
+              ...state.questions[idx],
+              slot: body.slot || state.questions[idx].slot,
+              sub_topic: body.sub_topic ?? state.questions[idx].sub_topic,
+              content: body.content ?? state.questions[idx].content,
+              solution: body.solution ?? state.questions[idx].solution,
+              source_name: body.source_name ?? state.questions[idx].source_name,
+            };
+            await persistState(env, state);
+            return jsonResponse({ ok: true, question: state.questions[idx] });
+          }
+          if (method === "DELETE") {
+            state.questions = state.questions.filter((q) => q.id !== qid);
+            await persistState(env, state);
+            return jsonResponse({ ok: true });
+          }
+        }
+
+        // 5. DELETE /api/exams/:id
+        if (path.startsWith("/api/exams/") && method === "DELETE") {
+          const examId = Number(path.split("/").pop());
+          state.questions = state.questions.filter((q) => q.exam_id !== examId);
+          state.exams = state.exams.filter((e) => e.id !== examId);
+          await persistState(env, state);
           return jsonResponse({ ok: true });
         }
-      }
 
-      // 5. DELETE /api/exams/:id
-      if (path.startsWith("/api/exams/") && method === "DELETE") {
-        const examId = Number(path.split("/").pop());
-        await env.DB.prepare("DELETE FROM questions WHERE exam_id = ?").bind(examId).run();
-        await env.DB.prepare("DELETE FROM exams WHERE id = ?").bind(examId).run();
-        return jsonResponse({ ok: true });
-      }
+        // 6. POST /api/mix
+        if (path === "/api/mix" && method === "POST") {
+          let excludeIds = [];
+          try {
+            const body = await request.json();
+            excludeIds = body.exclude_ids || [];
+          } catch (_) {}
+          const excludeSet = new Set(excludeIds.map(Number));
 
-      // 6. POST /api/mix
-      if (path === "/api/mix" && method === "POST") {
-        let excludeIds = [];
-        try {
+          const bySlot = {};
+          for (const q of state.questions) {
+            if (!bySlot[q.slot]) bySlot[q.slot] = [];
+            bySlot[q.slot].push(q);
+          }
+
+          const selected = {};
+          const usedExamCounts = {};
+
+          for (const s of EXAM_SLOTS) {
+            const code = s.code;
+            const candidates = bySlot[code] || [];
+            if (!candidates.length) {
+              selected[code] = null;
+              continue;
+            }
+            const nonExcluded = candidates.filter((c) => !excludeSet.has(c.id));
+            const pool = [...(nonExcluded.length ? nonExcluded : candidates)];
+
+            const iii1Topic =
+              code === "III.2" && selected["III.1"]
+                ? String(selected["III.1"].sub_topic || "").trim().toLowerCase()
+                : null;
+
+            pool.sort((a, b) => {
+              const penA = iii1Topic && String(a.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
+              const penB = iii1Topic && String(b.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
+              if (penA !== penB) return penA - penB;
+              const useA = usedExamCounts[a.exam_id || 0] || 0;
+              const useB = usedExamCounts[b.exam_id || 0] || 0;
+              if (useA !== useB) return useA - useB;
+              return Math.random() - 0.5;
+            });
+
+            const chosen = pool[0];
+            selected[code] = chosen;
+            const ek = chosen.exam_id || 0;
+            usedExamCounts[ek] = (usedExamCounts[ek] || 0) + 1;
+          }
+
+          return jsonResponse({ ok: true, exam: selected });
+        }
+
+        // 7. POST /api/swap
+        if (path === "/api/swap" && method === "POST") {
           const body = await request.json();
-          excludeIds = body.exclude_ids || [];
-        } catch (_) {}
-        const excludeSet = new Set(excludeIds.map(Number));
-
-        const { results: allQ } = await env.DB.prepare("SELECT * FROM questions").all();
-        const bySlot = {};
-        for (const q of allQ) {
-          if (!bySlot[q.slot]) bySlot[q.slot] = [];
-          bySlot[q.slot].push(q);
+          const candidates = state.questions.filter((q) => q.slot === body.slot);
+          if (!candidates.length) return jsonResponse({ detail: "Không có câu hỏi" }, 404);
+          const others = candidates.filter((q) => q.id !== body.current_id);
+          const pool = others.length ? others : candidates;
+          const chosen = pool[Math.floor(Math.random() * pool.length)];
+          return jsonResponse({ ok: true, question: chosen });
         }
 
-        const selected = {};
-        const usedExamCounts = {};
+        // 8. Saved Exams CRUD
+        if (path === "/api/saved-exams" && method === "GET") {
+          const list = [...(state.saved_exams || [])].sort((a, b) => b.id - a.id);
+          return jsonResponse({ saved_exams: list });
+        }
 
-        for (const s of EXAM_SLOTS) {
-          const code = s.code;
-          const candidates = bySlot[code] || [];
-          if (!candidates.length) {
-            selected[code] = null;
-            continue;
+        if (path === "/api/saved-exams" && method === "POST") {
+          const body = await request.json();
+          if (!state.saved_exams) state.saved_exams = [];
+          const maxId = state.saved_exams.reduce((m, r) => Math.max(m, r.id || 0), 0);
+          const rec = {
+            id: maxId + 1,
+            exam_code: body.exam_code || "101",
+            title: body.title || "Đề lưu",
+            header: body.header_info || {},
+            slot_question_ids: body.slot_question_ids || {},
+            created_at: nowFormatted(),
+          };
+          state.saved_exams.push(rec);
+          await persistState(env, state);
+          return jsonResponse({ ok: true, saved_exam: rec });
+        }
+
+        if (path.startsWith("/api/saved-exams/") && method === "DELETE") {
+          const sid = Number(path.split("/").pop());
+          state.saved_exams = (state.saved_exams || []).filter((r) => r.id !== sid);
+          await persistState(env, state);
+          return jsonResponse({ ok: true });
+        }
+
+        // 9. POST /api/qa-exam
+        if (path === "/api/qa-exam" && method === "POST") {
+          const body = await request.json();
+          const exam = state.exams.find((e) => e.id === Number(body.exam_id));
+          if (!exam) return jsonResponse({ detail: "Không tìm thấy đề" }, 404);
+          let fixedCount = 0;
+          for (const q of state.questions) {
+            if (q.exam_id === exam.id) {
+              const cleaned = String(q.content || "").replace(/\$\s*(\[[^\$\]]+?\))\s*\$/g, "$1");
+              if (cleaned !== q.content) {
+                q.content = cleaned;
+                fixedCount++;
+              }
+            }
           }
-          const nonExcluded = candidates.filter((c) => !excludeSet.has(c.id));
-          const pool = [...(nonExcluded.length ? nonExcluded : candidates)];
-
-          const iii1Topic =
-            code === "III.2" && selected["III.1"]
-              ? String(selected["III.1"].sub_topic || "").trim().toLowerCase()
-              : null;
-
-          pool.sort((a, b) => {
-            const penA = iii1Topic && String(a.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
-            const penB = iii1Topic && String(b.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
-            if (penA !== penB) return penA - penB;
-            const useA = usedExamCounts[a.exam_id || 0] || 0;
-            const useB = usedExamCounts[b.exam_id || 0] || 0;
-            if (useA !== useB) return useA - useB;
-            return Math.random() - 0.5;
+          if (fixedCount > 0) await persistState(env, state);
+          return jsonResponse({
+            ok: true,
+            result: {
+              exam_id: exam.id,
+              school_name: exam.school_name,
+              qa_fixes_summary: [`Đã chuẩn hóa LaTeX & khoảng nửa mở (${fixedCount} chỉnh sửa)`],
+              elapsed_seconds: 0.2,
+            },
           });
-
-          const chosen = pool[0];
-          selected[code] = chosen;
-          const ek = chosen.exam_id || 0;
-          usedExamCounts[ek] = (usedExamCounts[ek] || 0) + 1;
         }
 
-        return jsonResponse({ ok: true, exam: selected });
-      }
+        // 10. POST /api/export-docx
+        if (path === "/api/export-docx" && method === "POST") {
+          const body = await request.json();
+          const slotIds = body.slot_question_ids || {};
+          const questionsBySlot = {};
 
-      // 7. POST /api/swap
-      if (path === "/api/swap" && method === "POST") {
-        const body = await request.json();
-        const { results } = await env.DB.prepare("SELECT * FROM questions WHERE slot = ?").bind(body.slot).all();
-        if (!results.length) return jsonResponse({ detail: "Không có câu hỏi" }, 404);
-        const others = results.filter((q) => q.id !== body.current_id);
-        const pool = others.length ? others : results;
-        const chosen = pool[Math.floor(Math.random() * pool.length)];
-        return jsonResponse({ ok: true, question: chosen });
-      }
-
-      // 8. Saved Exams CRUD
-      if (path === "/api/saved-exams" && method === "GET") {
-        const { results } = await env.DB.prepare("SELECT * FROM saved_exams ORDER BY id DESC").all();
-        const formatted = results.map((r) => ({
-          ...r,
-          header: JSON.parse(r.header_json || "{}"),
-          slot_question_ids: JSON.parse(r.slot_question_ids_json || "{}"),
-        }));
-        return jsonResponse({ saved_exams: formatted });
-      }
-
-      if (path === "/api/saved-exams" && method === "POST") {
-        const body = await request.json();
-        const now = nowFormatted();
-        const res = await env.DB.prepare(
-          "INSERT INTO saved_exams (exam_code, title, header_json, slot_question_ids_json, created_at) VALUES (?, ?, ?, ?, ?)"
-        )
-          .bind(
-            body.exam_code || "101",
-            body.title || "Đề lưu",
-            JSON.stringify(body.header_info || {}),
-            JSON.stringify(body.slot_question_ids || {}),
-            now
-          )
-          .run();
-        const newId = res.meta.last_row_id;
-        const row = await env.DB.prepare("SELECT * FROM saved_exams WHERE id = ?").bind(newId).first();
-        return jsonResponse({
-          ok: true,
-          saved_exam: {
-            ...row,
-            header: JSON.parse(row.header_json || "{}"),
-            slot_question_ids: JSON.parse(row.slot_question_ids_json || "{}"),
-          },
-        });
-      }
-
-      if (path.startsWith("/api/saved-exams/") && method === "DELETE") {
-        const sid = Number(path.split("/").pop());
-        await env.DB.prepare("DELETE FROM saved_exams WHERE id = ?").bind(sid).run();
-        return jsonResponse({ ok: true });
-      }
-
-      // 9. POST /api/qa-exam (Serverless LLM QA on existing exam in D1)
-      if (path === "/api/qa-exam" && method === "POST") {
-        const body = await request.json();
-        const exam = await env.DB.prepare("SELECT * FROM exams WHERE id = ?").bind(body.exam_id).first();
-        if (!exam) return jsonResponse({ detail: "Không tìm thấy đề" }, 404);
-        const { results: qs } = await env.DB.prepare("SELECT * FROM questions WHERE exam_id = ?").bind(body.exam_id).all();
-
-        let fixedCount = 0;
-        for (const q of qs) {
-          const cleaned = String(q.content || "").replace(/\$\s*(\[[^\$\]]+?\))\s*\$/g, "$1");
-          if (cleaned !== q.content) {
-            await env.DB.prepare("UPDATE questions SET content = ? WHERE id = ?").bind(cleaned, q.id).run();
-            fixedCount++;
+          for (const [slotCode, qId] of Object.entries(slotIds)) {
+            if (qId) {
+              questionsBySlot[slotCode] = state.questions.find((q) => q.id === Number(qId)) || null;
+            } else {
+              questionsBySlot[slotCode] = null;
+            }
           }
+
+          const headerInfo = {
+            org_name: body.org_name || "SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI",
+            school_name: body.school_name || "ĐỀ THI CHÍNH THỨC",
+            exam_title: body.exam_title || "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT",
+            academic_year: body.academic_year || "2026 - 2027",
+            exam_code: body.exam_code || "101",
+            duration: body.duration || "120 phút",
+          };
+
+          const docxBytes = await buildDocxBytes(
+            questionsBySlot,
+            headerInfo,
+            body.include_solutions !== false,
+            env,
+            request.url
+          );
+
+          return new Response(docxBytes, {
+            status: 200,
+            headers: {
+              "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "Content-Disposition": `attachment; filename="De_Toan_10_Ma_${headerInfo.exam_code}.docx"`,
+            },
+          });
         }
-        return jsonResponse({
-          ok: true,
-          result: {
-            exam_id: exam.id,
-            school_name: exam.school_name,
-            qa_fixes_summary: [`Đã chuẩn hóa LaTeX & khoảng nửa mở cho ${qs.length} câu hỏi (${fixedCount} chỉnh sửa)`],
-            elapsed_seconds: 0.4,
-          },
-        });
       }
 
-      // 10. POST /api/export-docx
-      if (path === "/api/export-docx" && method === "POST") {
-        const body = await request.json();
-        const slotIds = body.slot_question_ids || {};
-        const questionsBySlot = {};
-
-        for (const [slotCode, qId] of Object.entries(slotIds)) {
-          if (qId) {
-            questionsBySlot[slotCode] = await env.DB.prepare("SELECT * FROM questions WHERE id = ?").bind(Number(qId)).first();
-          } else {
-            questionsBySlot[slotCode] = null;
-          }
-        }
-
-        const headerInfo = {
-          org_name: body.org_name || "SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI",
-          school_name: body.school_name || "ĐỀ THI CHÍNH THỨC",
-          exam_title: body.exam_title || "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT",
-          academic_year: body.academic_year || "2026 - 2027",
-          exam_code: body.exam_code || "101",
-          duration: body.duration || "120 phút",
-        };
-
-        const docxBytes = await buildDocxBytes(
-          questionsBySlot,
-          headerInfo,
-          body.include_solutions !== false,
-          env,
-          request.url
-        );
-
-        return new Response(docxBytes, {
-          status: 200,
-          headers: {
-            "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "Content-Disposition": `attachment; filename="De_Toan_10_Ma_${headerInfo.exam_code}.docx"`,
-          },
-        });
-      }
-
-      // Static Assets Fallback
       if (env.ASSETS) {
         return env.ASSETS.fetch(request);
       }
