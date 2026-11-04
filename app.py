@@ -101,6 +101,7 @@ class RegisterRequest(BaseModel):
 
 
 class GoogleAuthRequest(BaseModel):
+    access_token: Optional[str] = None
     credential: Optional[str] = None
     email: Optional[str] = None
     name: Optional[str] = None
@@ -199,7 +200,18 @@ def api_auth_google(req: GoogleAuthRequest):
     email = ""
     name = ""
     avatar = ""
-    if req.credential:
+    if req.access_token:
+        url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        try:
+            r = urllib.request.Request(url, headers={"Authorization": f"Bearer {req.access_token}"})
+            with urllib.request.urlopen(r, timeout=10) as resp:
+                gdata = json.loads(resp.read().decode("utf-8"))
+                email = (gdata.get("email") or "").lower()
+                name = gdata.get("name") or email.split("@")[0]
+                avatar = gdata.get("picture") or ""
+        except Exception:
+            raise HTTPException(status_code=401, detail="Access Token Google không hợp lệ")
+    elif req.credential:
         url = f"https://oauth2.googleapis.com/tokeninfo?id_token={req.credential}"
         try:
             with urllib.request.urlopen(url, timeout=10) as resp:

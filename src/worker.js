@@ -984,7 +984,18 @@ export default {
           let name = "";
           let avatar = "";
 
-          if (body.credential) {
+          if (body.access_token) {
+            const gResp = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+              headers: { Authorization: `Bearer ${body.access_token}` },
+            });
+            if (!gResp.ok) {
+              return jsonResponse({ detail: "Access Token Google không hợp lệ" }, 401);
+            }
+            const gData = await gResp.json();
+            email = String(gData.email || "").toLowerCase();
+            name = gData.name || email.split("@")[0];
+            avatar = gData.picture || "";
+          } else if (body.credential) {
             // Verify real Google ID Token via Google tokeninfo endpoint
             const gResp = await fetch(
               `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(body.credential)}`
