@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare Workers & D1
+name: Deploy to Cloudflare Pages & Workers
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy math-auto-bank
+    name: Deploy math-bank
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,7 +19,24 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Deploy Worker & Static Assets to Cloudflare
+      - name: Bundle Pages Worker
+        run: npx --yes esbuild src/worker.js --bundle --format=esm --outfile=public/_worker.js
+
+      - name: Deploy to Cloudflare Pages (math-bank-10.pages.dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy public --project-name=math-bank-10 --branch=main
+
+      - name: Deploy to Cloudflare Pages (math-bank-9ba.pages.dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy public --project-name=math-bank --branch=main
+
+      - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
