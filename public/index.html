@@ -1200,6 +1200,126 @@
       padding: 16px;
       box-shadow: var(--shadow-card);
     }
+    /* Studio Sidebar Action Card */
+    .action-panel-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-action-mix {
+      width: 100%;
+      height: 42px;
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      color: #ffffff !important;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.28);
+      transition: all var(--trans);
+      cursor: pointer;
+    }
+    .btn-action-mix:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(234, 88, 12, 0.38);
+      filter: brightness(1.05);
+    }
+    .btn-action-mix:active {
+      transform: translateY(0);
+    }
+    .btn-action-docx {
+      width: 100%;
+      height: 40px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #ffffff !important;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      transition: all var(--trans);
+      cursor: pointer;
+    }
+    .btn-action-docx:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+      filter: brightness(1.06);
+    }
+    .btn-action-docx:active {
+      transform: translateY(0);
+    }
+    .action-btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .btn-action-sub {
+      height: 36px;
+      background: #ffffff;
+      color: var(--navy-800);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all var(--trans);
+      cursor: pointer;
+    }
+    .btn-action-sub:hover {
+      background: var(--slate-100);
+      border-color: #cbd5e1;
+      color: var(--navy-900);
+    }
+    .btn-toggle-tool {
+      height: 35px;
+      background: #f8fafc;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all var(--trans);
+      cursor: pointer;
+    }
+    .btn-toggle-tool:hover {
+      background: #f1f5f9;
+      color: var(--navy-800);
+      border-color: #cbd5e1;
+    }
+    #btnToggleSolutions.active-toggle {
+      background: #ecfdf5;
+      color: #065f46;
+      border-color: #a7f3d0;
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+    }
+    #btnToggleBars.active-toggle {
+      background: #eff6ff;
+      color: #1e40af;
+      border-color: #bfdbfe;
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(59, 130, 246, 0.15);
+    }
     .sidebar-group-title {
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 12px;
@@ -2499,6 +2619,56 @@
       <div class="studio-layout">
         <!-- Left Floating Cards Inspector -->
         <aside class="studio-sidebar">
+          <!-- Card 1: Action Center & Export -->
+          <div class="inspector-card action-panel-card">
+            <div class="sidebar-group-title" style="margin-bottom:2px;">
+              <span><i data-lucide="sparkles" class="lucide" style="margin-right:6px; color:#f59e0b;"></i>Thao tác & Xuất bản</span>
+              <span class="role-badge" style="background:#fef3c7; color:#b45309; font-size:10.5px; font-weight:700;">Studio</span>
+            </div>
+
+            <!-- Primary Mix Button -->
+            <button class="btn btn-action-mix" id="btnMixExam" onclick="mixNewExam(this)" title="Trộn lại 9 câu hỏi ngẫu nhiên theo ma trận chuẩn">
+              <i data-lucide="shuffle" class="lucide"></i>
+              <span>Trộn đề ngẫu nhiên</span>
+            </button>
+
+            <!-- Export DOCX Button -->
+            <button class="btn btn-action-docx" id="btnExportDocx" onclick="exportDocx(this)" title="Xuất file Word (.docx) chuẩn công thức toán học OMML">
+              <i data-lucide="file-down" class="lucide"></i>
+              <span>Xuất Word (.docx)</span>
+            </button>
+
+            <!-- Save & Print Buttons -->
+            <div class="action-btn-grid">
+              <button class="btn btn-action-sub" id="btnSaveExam" onclick="saveCurrentExam(this)" title="Lưu đề thi này vào kho bộ đề của bạn">
+                <i data-lucide="bookmark-plus" class="lucide" style="color:#d97706;"></i>
+                <span>Lưu bộ đề</span>
+              </button>
+              <button class="btn btn-action-sub" onclick="window.print()" title="Mở hộp thoại in hoặc lưu PDF chuẩn A4">
+                <i data-lucide="printer" class="lucide" style="color:#0284c7;"></i>
+                <span>In / Xuất PDF</span>
+              </button>
+            </div>
+
+            <!-- View Modes (Toggle Solutions & Print Mode) -->
+            <div style="margin-top:4px; padding-top:10px; border-top:1px dashed var(--border);">
+              <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
+                <span>Chế độ xem & Soát bài</span>
+              </div>
+              <div class="action-btn-grid">
+                <button class="btn btn-toggle-tool" id="btnToggleSolutions" onclick="toggleSolutions()" title="Bật / tắt hiển thị hướng dẫn giải và đáp số chi tiết">
+                  <i data-lucide="eye" class="lucide"></i>
+                  <span>Xem đáp án</span>
+                </button>
+                <button class="btn btn-toggle-tool" id="btnToggleBars" onclick="toggleSlotBars()" title="Ẩn các thanh công cụ từng câu để xem như đề in">
+                  <i data-lucide="layout-template" class="lucide"></i>
+                  <span>Chế độ bản in</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Header Info -->
           <div class="inspector-card">
             <div class="sidebar-group-title">
               <span><i data-lucide="file-text" class="lucide" style="margin-right:5px; color:var(--navy-700);"></i>Thông tin tiêu đề đề thi</span>
@@ -2550,6 +2720,7 @@
             </div>
           </div>
 
+          <!-- Card 3: Question Outline Matrix -->
           <div class="inspector-card">
             <div class="sidebar-group-title">
               <span><i data-lucide="layout-list" class="lucide" style="margin-right:5px; color:var(--navy-700);"></i>Ma trận 9 câu chuẩn</span>
@@ -2561,38 +2732,6 @@
 
         <!-- Main A4 Workspace -->
         <div class="studio-canvas">
-          <div class="canvas-toolbar">
-            <div class="toolbar-group">
-              <button class="btn btn-brand" id="btnMixExam" onclick="mixNewExam(this)">
-                <i data-lucide="shuffle" class="lucide"></i>
-                <span>Trộn đề ngẫu nhiên</span>
-              </button>
-              <button class="btn" id="btnToggleSolutions" onclick="toggleSolutions()">
-                <i data-lucide="eye" class="lucide"></i>
-                <span>Xem đáp án</span>
-              </button>
-              <button class="btn" id="btnToggleBars" onclick="toggleSlotBars()">
-                <i data-lucide="layout-template" class="lucide"></i>
-                <span>Chế độ bản in</span>
-              </button>
-            </div>
-
-            <div class="toolbar-group">
-              <button class="btn" id="btnSaveExam" onclick="saveCurrentExam(this)">
-                <i data-lucide="bookmark-plus" class="lucide"></i>
-                <span>Lưu bộ đề</span>
-              </button>
-              <button class="btn btn-primary" id="btnExportDocx" onclick="exportDocx(this)">
-                <i data-lucide="file-down" class="lucide"></i>
-                <span>Xuất Word (.docx)</span>
-              </button>
-              <button class="btn" onclick="window.print()">
-                <i data-lucide="printer" class="lucide"></i>
-                <span>In / Xuất PDF</span>
-              </button>
-            </div>
-          </div>
-
           <!-- A4 Exam Sheet -->
           <div class="exam-sheet" id="examSheet">
             <div class="exam-header">
@@ -3700,13 +3839,27 @@
     function toggleSolutions() {
       showSolutionsFlag = !showSolutionsFlag;
       document.getElementById("examSheet").classList.toggle("show-solutions", showSolutionsFlag);
-      document.getElementById("btnToggleSolutions").classList.toggle("active-toggle", showSolutionsFlag);
+      const btn = document.getElementById("btnToggleSolutions");
+      if (btn) {
+        btn.classList.toggle("active-toggle", showSolutionsFlag);
+        btn.innerHTML = showSolutionsFlag
+          ? `<i data-lucide="eye-off" class="lucide"></i><span>Ẩn đáp án</span>`
+          : `<i data-lucide="eye" class="lucide"></i><span>Xem đáp án</span>`;
+        refreshIcons();
+      }
     }
 
     function toggleSlotBars() {
       hideSlotBarsFlag = !hideSlotBarsFlag;
       document.getElementById("examSheet").classList.toggle("hide-slot-bars", hideSlotBarsFlag);
-      document.getElementById("btnToggleBars").classList.toggle("active-toggle", hideSlotBarsFlag);
+      const btn = document.getElementById("btnToggleBars");
+      if (btn) {
+        btn.classList.toggle("active-toggle", hideSlotBarsFlag);
+        btn.innerHTML = hideSlotBarsFlag
+          ? `<i data-lucide="layout" class="lucide"></i><span>Hiện công cụ</span>`
+          : `<i data-lucide="layout-template" class="lucide"></i><span>Chế độ bản in</span>`;
+        refreshIcons();
+      }
     }
 
     /* Slide-over Picker Drawer */
