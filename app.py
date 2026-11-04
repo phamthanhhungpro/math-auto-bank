@@ -5,7 +5,7 @@ import urllib.request
 import urllib.parse
 from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response, RedirectResponse
+from fastapi.responses import HTMLResponse, Response, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -55,6 +55,15 @@ init_db()
 
 app = FastAPI(title="MathBank 10 - Ngân Hàng & Trộn Đề Toán 10")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/favicon.svg")
+@app.get("/favicon.ico")
+def get_favicon():
+    fav_path = os.path.join(STATIC_DIR, "favicon.svg")
+    if os.path.exists(fav_path):
+        return FileResponse(fav_path, media_type="image/svg+xml")
+    return Response(status_code=404)
 
 
 def create_session_token(user: Dict[str, Any]) -> str:
