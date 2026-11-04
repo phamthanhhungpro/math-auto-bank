@@ -109,8 +109,39 @@ def add_figure_to_doc(doc: Document, figure_path: Optional[str]):
         run_img.add_picture(abs_fig, width=Inches(2.8))
 
 
+def convert_markdown_tables_to_html(text: str) -> str:
+    if not text or "|" not in text:
+        return text
+    pattern = r"(?:^|\n)([ \t]*\|[^\n]+\|[ \t]*\n[ \t]*\|(?:\s*:?-+:?\s*\|)+\s*(?:\n[ \t]*\|[^\n]+\|[ \t]*)+)"
+    def repl(match):
+        lines = [ln.strip() for ln in match.group(1).strip().split("\n") if ln.strip()]
+        if len(lines) < 2:
+            return match.group(0)
+        sep_idx = -1
+        for i, ln in enumerate(lines):
+            if re.match(r"^\|(?:\s*:?-+:?\s*\|)+$", ln):
+                sep_idx = i
+                break
+        if sep_idx == -1:
+            return match.group(0)
+        html = ['<table border="1" style="border-collapse: collapse; text-align: center; margin: 8px auto;">']
+        for i, ln in enumerate(lines):
+            if i == sep_idx:
+                continue
+            is_header = (i < sep_idx)
+            tag = "th" if is_header else "td"
+            raw = ln.strip("|")
+            cells = [c.strip() for c in raw.split("|")]
+            html.append("<tr>" + "".join(f"<{tag}>{c}</{tag}>" for c in cells) + "</tr>")
+        html.append("</table>")
+        return "\n" + "".join(html) + "\n"
+
+    return re.sub(pattern, repl, text)
+
+
 def render_question_block(doc: Document, content: str, prefix: str = "", figure_path: Optional[str] = None):
     """Renders question text (with HTML tables, {{FIGURE}}, and $...$ math) into doc."""
+    content = convert_markdown_tables_to_html(content)
     figure_rendered = False
     # Split content by <table>...</table> or {{FIGURE}}
     parts = re.split(r"(<table[\s\S]*?</table>|\{\{FIGURE\}\})", content, flags=re.IGNORECASE)

@@ -175,6 +175,8 @@ function syncStateWithSeed(stored) {
     } else {
       const existing = qMap.get(q.id);
       if (!existing.category && q.category) existing.category = q.category;
+      if (existing.content !== q.content) existing.content = q.content;
+      if (existing.solution !== q.solution) existing.solution = q.solution;
     }
   }
   stored.questions = Array.from(qMap.values());
@@ -185,9 +187,15 @@ async function getState(env) {
   if (memoryState) return memoryState;
   if (env.KV) {
     try {
-      const stored = await env.KV.get("BANK_STATE_V4", "json");
+      const stored = await env.KV.get("BANK_STATE_V5", "json");
       if (stored && Array.isArray(stored.questions)) {
         memoryState = syncStateWithSeed(stored);
+        return memoryState;
+      }
+      // Fallback check V4
+      const storedV4 = await env.KV.get("BANK_STATE_V4", "json");
+      if (storedV4 && Array.isArray(storedV4.questions)) {
+        memoryState = syncStateWithSeed(storedV4);
         return memoryState;
       }
       // Fallback check V3
@@ -226,7 +234,7 @@ async function getState(env) {
 async function persistState(env, state) {
   memoryState = state;
   if (env.KV) {
-    await env.KV.put("BANK_STATE_V4", JSON.stringify(state));
+    await env.KV.put("BANK_STATE_V5", JSON.stringify(state));
   }
 }
 
@@ -868,6 +876,34 @@ function makeRichParagraphXml(text, opts = {}) {
   return `<w:p><w:pPr><w:spacing w:before="40" w:after="60" w:line="276" w:lineRule="auto"/>${align}</w:pPr>${innerXml}</w:p>`;
 }
 
+function convertMarkdownTablesToHtml(text) {
+  if (!text || !text.includes("|")) return text;
+  const mdTableRegex = /(?:^|\n)([ \t]*\|[^\n]+\|[ \t]*\n[ \t]*\|(?:\s*:?-+:?\s*\|)+\s*(?:\n[ \t]*\|[^\n]+\|[ \t]*)+)/g;
+  return text.replace(mdTableRegex, (match, tableBlock) => {
+    const lines = tableBlock.trim().split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return match;
+    let sepIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\|(?:\s*:?-+:?\s*\|)+$/.test(lines[i])) {
+        sepIdx = i;
+        break;
+      }
+    }
+    if (sepIdx === -1) return match;
+    let html = '<table border="1" style="border-collapse: collapse; text-align: center; margin: 8px auto;">';
+    for (let i = 0; i < lines.length; i++) {
+      if (i === sepIdx) continue;
+      const isHeader = i < sepIdx;
+      const tag = isHeader ? "th" : "td";
+      const rawRow = lines[i].replace(/^\|/, "").replace(/\|$/, "");
+      const cells = rawRow.split("|").map((c) => c.trim());
+      html += "<tr>" + cells.map((c) => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
+    }
+    html += "</table>";
+    return "\n" + html + "\n";
+  });
+}
+
 function makeTableXml(htmlTable) {
   const trMatches = [...htmlTable.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
   if (!trMatches.length) return "";
@@ -936,7 +972,8 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
         } catch (_) {}
       }
 
-      const parts = String(q.content || "").split(/(<table[\s\S]*?<\/table>|\{\{FIGURE\}\})/i);
+      const rawContent = convertMarkdownTablesToHtml(String(q.content || ""));
+      const parts = rawContent.split(/(<table[\s\S]*?<\/table>|\{\{FIGURE\}\})/i);
       let firstLine = true;
       let figRendered = false;
 
