@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from database import (
     init_db,
     EXAM_SLOTS,
+    EXAM_CATEGORIES,
+    get_categories,
     get_ingested_files,
     get_slot_counts,
     get_questions_by_slot,
@@ -140,11 +142,13 @@ class QARequest(BaseModel):
 
 class MixRequest(BaseModel):
     exclude_ids: List[int] = []
+    category: Optional[str] = None
 
 
 class SwapRequest(BaseModel):
     slot: str
     current_id: Optional[int] = None
+    category: Optional[str] = None
 
 
 class QuestionUpsertRequest(BaseModel):
@@ -337,9 +341,14 @@ def api_admin_update_role(uid: int, req: RoleUpdateRequest, request: Request):
     return {"ok": True, "user": updated}
 
 
+@app.get("/api/categories")
+def api_get_categories():
+    return {"categories": get_categories()}
+
+
 @app.get("/api/status")
-def api_status():
-    ingested = get_ingested_files()
+def api_status(category: Optional[str] = None):
+    ingested = get_ingested_files(category)
     slot_counts = get_slot_counts()
 
     pdf_files = []
@@ -360,7 +369,9 @@ def api_status():
                     "ingested": info is not None,
                     "exam_id": info["id"] if info else None,
                     "school_name": info["school_name"] if info else None,
+                    "exam_title": info["exam_title"] if info else None,
                     "academic_year": info["academic_year"] if info else None,
+                    "category": info.get("category", "vao_10") if info else "chuyen_de",
                     "question_count": info["question_count"] if info else 0,
                     "ingested_at": info["ingested_at"] if info else None,
                 }
@@ -377,7 +388,9 @@ def api_status():
                     "ingested": True,
                     "exam_id": info["id"],
                     "school_name": info["school_name"],
+                    "exam_title": info["exam_title"],
                     "academic_year": info["academic_year"],
+                    "category": info.get("category", "vao_10"),
                     "question_count": info["question_count"],
                     "ingested_at": info["ingested_at"],
                 },
@@ -385,6 +398,7 @@ def api_status():
 
     return {
         "slots": EXAM_SLOTS,
+        "categories": get_categories(),
         "slot_counts": slot_counts,
         "total_questions": sum(slot_counts.values()),
         "total_ingested_exams": len(ingested),
@@ -399,8 +413,8 @@ def api_status():
 
 
 @app.get("/api/questions")
-def api_questions(slot: Optional[str] = None):
-    return {"questions": get_questions_by_slot(slot)}
+def api_questions(slot: Optional[str] = None, category: Optional[str] = None):
+    return {"questions": get_questions_by_slot(slot, category)}
 
 
 @app.post("/api/questions")
@@ -486,13 +500,14 @@ def api_qa_exam(req: QARequest, request: Request):
 @app.post("/api/mix")
 def api_mix(req: Optional[MixRequest] = None):
     exclude = req.exclude_ids if req else []
-    mixed = mix_exam(exclude_ids=exclude)
+    cat = req.category if req else None
+    mixed = mix_exam(exclude_ids=exclude, category=cat)
     return {"ok": True, "exam": mixed}
 
 
 @app.post("/api/swap")
 def api_swap(req: SwapRequest):
-    q = swap_question_in_slot(req.slot, req.current_id)
+    q = swap_question_in_slot(req.slot, req.current_id, category=req.category)
     if not q:
         raise HTTPException(status_code=404, detail=f"Chưa có câu hỏi cho vị trí {req.slot}")
     return {"ok": True, "question": q}

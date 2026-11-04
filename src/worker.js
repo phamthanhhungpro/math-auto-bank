@@ -20,6 +20,99 @@ const EXAM_SECTIONS = [
   { title: "Bài V (0,5 điểm)", slots: [{ code: "V", prefix: "" }] },
 ];
 
+const EXAM_CATEGORIES = [
+  {
+    id: "all",
+    title: "Tất cả kỳ thi & Chuyên đề",
+    short_title: "Tất cả",
+    badge: "Toàn diện",
+    badge_color: "gray",
+    icon: "layers",
+    default_duration: "120 phút",
+    default_title: "ĐỀ THI MÔN TOÁN 9 — TỔNG HỢP",
+    description: "Kho toàn diện 140 đề thi và chuyên đề Toán 9 từ các trường trọng điểm.",
+  },
+  {
+    id: "vao_10",
+    title: "Tuyển sinh vào Lớp 10 THPT",
+    short_title: "Tuyển sinh 10",
+    badge: "Vào 10",
+    badge_color: "navy",
+    icon: "award",
+    default_duration: "120 phút",
+    default_title: "ĐỀ THI TUYỂN SINH VÀO LỚP 10 THPT",
+    description: "Cấu trúc chuẩn 5 bài 10,0 điểm bám sát đề thi chính thức Sở GD&ĐT Hà Nội.",
+  },
+  {
+    id: "giua_hk1",
+    title: "Khảo sát Giữa Học Kì 1",
+    short_title: "Giữa HK1",
+    badge: "Giữa HK1",
+    badge_color: "amber",
+    icon: "clipboard-check",
+    default_duration: "90 phút",
+    default_title: "ĐỀ KHẢO SÁT CHẤT LƯỢNG GIỮA HỌC KÌ 1 — MÔN TOÁN 9",
+    description: "Nội dung trọng tâm: Căn bậc hai, rút gọn biểu thức và Hệ thức lượng trong tam giác vuông.",
+  },
+  {
+    id: "cuoi_hk1",
+    title: "Kiểm tra Cuối Học Kì 1",
+    short_title: "Cuối HK1",
+    badge: "Cuối HK1",
+    badge_color: "teal",
+    icon: "book-marked",
+    default_duration: "90 phút",
+    default_title: "ĐỀ KIỂM TRA ĐÁNH GIÁ CUỐI HỌC KÌ 1 — MÔN TOÁN 9",
+    description: "Nội dung toàn diện HK1: Căn thức, Hàm số bậc nhất và Đường tròn (tiếp tuyến, dây cung).",
+  },
+  {
+    id: "giua_hk2",
+    title: "Khảo sát Giữa Học Kì 2",
+    short_title: "Giữa HK2",
+    badge: "Giữa HK2",
+    badge_color: "amber",
+    icon: "calendar-check",
+    default_duration: "90 phút",
+    default_title: "ĐỀ KHẢO SÁT CHẤT LƯỢNG GIỮA HỌC KÌ 2 — MÔN TOÁN 9",
+    description: "Nội dung trọng tâm: Hệ phương trình bậc nhất hai ẩn, Giải bài toán bằng cách lập hệ PT và Góc với đường tròn.",
+  },
+  {
+    id: "cuoi_hk2",
+    title: "Kiểm tra Cuối Học Kì 2",
+    short_title: "Cuối HK2",
+    badge: "Cuối HK2",
+    badge_color: "teal",
+    icon: "graduation-cap",
+    default_duration: "90 phút",
+    default_title: "ĐỀ KIỂM TRA ĐÁNH GIÁ CUỐI HỌC KÌ 2 — MÔN TOÁN 9",
+    description: "Nội dung tổng hợp HK2: Phương trình bậc hai, Định lý Vi-ét, Tứ giác nội tiếp và Hình không gian thực tế.",
+  },
+  {
+    id: "chuyen_de",
+    title: "Chuyên đề Ôn thi Trọng tâm",
+    short_title: "Chuyên đề",
+    badge: "Chuyên đề",
+    badge_color: "indigo",
+    icon: "sparkles",
+    default_duration: "90 phút",
+    default_title: "CHUYÊN ĐỀ ÔN THI TOÁN 9 TRỌNG TÂM",
+    description: "Các chuyên đề rèn luyện nâng cao: Bất đẳng thức Min/Max, Mô hình hình học phẳng và Toán thực tế.",
+  },
+];
+
+function getCategoriesWithCounts(state) {
+  const counts = {};
+  for (const e of (state.exams || [])) {
+    const cat = e.category || "vao_10";
+    counts[cat] = (counts[cat] || 0) + 1;
+  }
+  const total = (state.exams || []).length;
+  return EXAM_CATEGORIES.map((c) => ({
+    ...c,
+    count: c.id === "all" ? total : (counts[c.id] || 0),
+  }));
+}
+
 const SEEDED_USERS = [
   {
     id: 1,
@@ -51,25 +144,62 @@ function ensureSeededUsers(usersList) {
   return list;
 }
 
+function syncStateWithSeed(stored) {
+  if (!stored) return stored;
+  stored.users = ensureSeededUsers(stored.users);
+  if (!Array.isArray(stored.saved_exams)) stored.saved_exams = [];
+  if (!stored.settings) stored.settings = {};
+
+  const examMap = new Map();
+  for (const e of (stored.exams || [])) {
+    examMap.set(e.id, e);
+  }
+  for (const e of INITIAL_SEED.exams) {
+    if (!examMap.has(e.id)) {
+      examMap.set(e.id, e);
+    } else {
+      const existing = examMap.get(e.id);
+      if (!existing.category && e.category) existing.category = e.category;
+      if (!existing.exam_title && e.exam_title) existing.exam_title = e.exam_title;
+    }
+  }
+  stored.exams = Array.from(examMap.values());
+
+  const qMap = new Map();
+  for (const q of (stored.questions || [])) {
+    qMap.set(q.id, q);
+  }
+  for (const q of INITIAL_SEED.questions) {
+    if (!qMap.has(q.id)) {
+      qMap.set(q.id, q);
+    } else {
+      const existing = qMap.get(q.id);
+      if (!existing.category && q.category) existing.category = q.category;
+    }
+  }
+  stored.questions = Array.from(qMap.values());
+  return stored;
+}
+
 async function getState(env) {
   if (memoryState) return memoryState;
   if (env.KV) {
     try {
-      const stored = await env.KV.get("BANK_STATE_V2", "json");
+      const stored = await env.KV.get("BANK_STATE_V3", "json");
       if (stored && Array.isArray(stored.questions)) {
-        stored.users = ensureSeededUsers(stored.users);
-        if (!Array.isArray(stored.saved_exams)) stored.saved_exams = [];
-        if (!stored.settings) stored.settings = {};
-        memoryState = stored;
+        memoryState = syncStateWithSeed(stored);
+        return memoryState;
+      }
+      // Fallback check V2
+      const storedV2 = await env.KV.get("BANK_STATE_V2", "json");
+      if (storedV2 && Array.isArray(storedV2.questions)) {
+        memoryState = syncStateWithSeed(storedV2);
         return memoryState;
       }
       // Fallback check V1
       const storedV1 = await env.KV.get("BANK_STATE_V1", "json");
       if (storedV1 && Array.isArray(storedV1.questions)) {
-        storedV1.users = ensureSeededUsers(storedV1.users);
-        if (!Array.isArray(storedV1.saved_exams)) storedV1.saved_exams = [];
-        if (!storedV1.settings) storedV1.settings = {};
-        memoryState = storedV1;
+        memoryState = syncStateWithSeed(storedV1);
         return memoryState;
       }
     } catch (_) {}
@@ -90,7 +220,7 @@ async function getState(env) {
 async function persistState(env, state) {
   memoryState = state;
   if (env.KV) {
-    await env.KV.put("BANK_STATE_V2", JSON.stringify(state));
+    await env.KV.put("BANK_STATE_V3", JSON.stringify(state));
   }
 }
 
@@ -1196,6 +1326,11 @@ export default {
           return jsonResponse({ ok: true, user: { id: target.id, email: target.email, name: target.name, role: target.role } });
         }
 
+        // --- CATEGORIES ENDPOINT ---
+        if (path === "/api/categories" && method === "GET") {
+          return jsonResponse({ categories: getCategoriesWithCounts(state) });
+        }
+
         // 1. GET /api/status
         if (path === "/api/status" && method === "GET") {
           const slotCounts = {};
@@ -1206,13 +1341,21 @@ export default {
             if (q.exam_id) examQCounts[q.exam_id] = (examQCounts[q.exam_id] || 0) + 1;
           }
 
-          const pdfFiles = [...state.exams]
+          const categoryFilter = url.searchParams.get("category");
+          let examList = [...state.exams];
+          if (categoryFilter && categoryFilter !== "all") {
+            examList = examList.filter((e) => (e.category || "vao_10") === categoryFilter);
+          }
+
+          const pdfFiles = examList
             .sort((a, b) => b.id - a.id)
             .map((e) => ({
               filename: e.filename,
               ingested: true,
               school_name: e.school_name,
+              exam_title: e.exam_title,
               academic_year: e.academic_year,
+              category: e.category || "vao_10",
               ingested_at: e.ingested_at,
               question_count: examQCounts[e.id] || 0,
               exam_id: e.id,
@@ -1220,6 +1363,7 @@ export default {
 
           return jsonResponse({
             slots: EXAM_SLOTS,
+            categories: getCategoriesWithCounts(state),
             slot_counts: slotCounts,
             total_questions: state.questions.length,
             total_pdf_files: pdfFiles.length,
@@ -1232,9 +1376,13 @@ export default {
         // 2. GET /api/questions
         if (path === "/api/questions" && method === "GET") {
           const slot = url.searchParams.get("slot");
+          const category = url.searchParams.get("category");
           const search = (url.searchParams.get("search") || "").trim().toLowerCase();
           let list = [...state.questions].sort((a, b) => b.id - a.id);
-          if (slot) list = list.filter((q) => q.slot === slot);
+          if (slot && slot !== "ALL") list = list.filter((q) => q.slot === slot);
+          if (category && category !== "all") {
+            list = list.filter((q) => (q.category || "vao_10") === category);
+          }
           if (search) {
             list = list.filter(
               (q) =>
@@ -1311,9 +1459,11 @@ export default {
         // 6. POST /api/mix
         if (path === "/api/mix" && method === "POST") {
           let excludeIds = [];
+          let category = "vao_10";
           try {
             const body = await request.json();
             excludeIds = body.exclude_ids || [];
+            if (body.category) category = body.category;
           } catch (_) {}
           const excludeSet = new Set(excludeIds.map(Number));
 
@@ -1333,8 +1483,15 @@ export default {
               selected[code] = null;
               continue;
             }
-            const nonExcluded = candidates.filter((c) => !excludeSet.has(c.id));
-            const pool = [...(nonExcluded.length ? nonExcluded : candidates)];
+
+            let matching = candidates;
+            if (category && category !== "all") {
+              const inCat = candidates.filter((c) => (c.category || "vao_10") === category);
+              if (inCat.length > 0) matching = inCat;
+            }
+
+            const nonExcluded = matching.filter((c) => !excludeSet.has(c.id));
+            const pool = [...(nonExcluded.length ? nonExcluded : matching)];
 
             const iii1Topic =
               code === "III.2" && selected["III.1"]

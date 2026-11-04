@@ -19,6 +19,86 @@ EXAM_SLOTS = [
     {"code": "V", "group": "Bài V (0,5 điểm)", "label": "Toán thực tế vận dụng cao / Cực trị", "points": "0,5đ"},
 ]
 
+EXAM_CATEGORIES = [
+    {
+        "id": "all",
+        "title": "Tất cả kỳ thi & Chuyên đề",
+        "short_title": "Tất cả",
+        "badge": "Toàn diện",
+        "badge_color": "gray",
+        "icon": "layers",
+        "default_duration": "120 phút",
+        "default_title": "ĐỀ THI MÔN TOÁN 9 — TỔNG HỢP",
+        "description": "Kho toàn diện 140 đề thi và chuyên đề Toán 9 từ các trường trọng điểm."
+    },
+    {
+        "id": "vao_10",
+        "title": "Tuyển sinh vào Lớp 10 THPT",
+        "short_title": "Tuyển sinh 10",
+        "badge": "Vào 10",
+        "badge_color": "navy",
+        "icon": "award",
+        "default_duration": "120 phút",
+        "default_title": "ĐỀ THI TUYỂN SINH VÀO LỚP 10 THPT",
+        "description": "Cấu trúc chuẩn 5 bài 10,0 điểm bám sát đề thi chính thức Sở GD&ĐT Hà Nội."
+    },
+    {
+        "id": "giua_hk1",
+        "title": "Khảo sát Giữa Học Kì 1",
+        "short_title": "Giữa HK1",
+        "badge": "Giữa HK1",
+        "badge_color": "amber",
+        "icon": "clipboard-check",
+        "default_duration": "90 phút",
+        "default_title": "ĐỀ KHẢO SÁT CHẤT LƯỢNG GIỮA HỌC KÌ 1 — MÔN TOÁN 9",
+        "description": "Nội dung trọng tâm: Căn bậc hai, rút gọn biểu thức và Hệ thức lượng trong tam giác vuông."
+    },
+    {
+        "id": "cuoi_hk1",
+        "title": "Kiểm tra Cuối Học Kì 1",
+        "short_title": "Cuối HK1",
+        "badge": "Cuối HK1",
+        "badge_color": "teal",
+        "icon": "book-marked",
+        "default_duration": "90 phút",
+        "default_title": "ĐỀ KIỂM TRA ĐÁNH GIÁ CUỐI HỌC KÌ 1 — MÔN TOÁN 9",
+        "description": "Nội dung toàn diện HK1: Căn thức, Hàm số bậc nhất và Đường tròn (tiếp tuyến, dây cung)."
+    },
+    {
+        "id": "giua_hk2",
+        "title": "Khảo sát Giữa Học Kì 2",
+        "short_title": "Giữa HK2",
+        "badge": "Giữa HK2",
+        "badge_color": "amber",
+        "icon": "calendar-check",
+        "default_duration": "90 phút",
+        "default_title": "ĐỀ KHẢO SÁT CHẤT LƯỢNG GIỮA HỌC KÌ 2 — MÔN TOÁN 9",
+        "description": "Nội dung trọng tâm: Hệ phương trình bậc nhất hai ẩn, Giải bài toán bằng cách lập hệ PT và Góc với đường tròn."
+    },
+    {
+        "id": "cuoi_hk2",
+        "title": "Kiểm tra Cuối Học Kì 2",
+        "short_title": "Cuối HK2",
+        "badge": "Cuối HK2",
+        "badge_color": "teal",
+        "icon": "graduation-cap",
+        "default_duration": "90 phút",
+        "default_title": "ĐỀ KIỂM TRA ĐÁNH GIÁ CUỐI HỌC KÌ 2 — MÔN TOÁN 9",
+        "description": "Nội dung tổng hợp HK2: Phương trình bậc hai, Định lý Vi-ét, Tứ giác nội tiếp và Hình không gian thực tế."
+    },
+    {
+        "id": "chuyen_de",
+        "title": "Chuyên đề Ôn thi Trọng tâm",
+        "short_title": "Chuyên đề",
+        "badge": "Chuyên đề",
+        "badge_color": "indigo",
+        "icon": "sparkles",
+        "default_duration": "90 phút",
+        "default_title": "CHUYÊN ĐỀ ÔN THI TOÁN 9 TRỌNG TÂM",
+        "description": "Các chuyên đề rèn luyện nâng cao: Bất đẳng thức Min/Max, Mô hình hình học phẳng và Toán thực tế."
+    }
+]
+
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
@@ -160,16 +240,39 @@ def delete_exam(exam_id: int) -> bool:
     return deleted
 
 
-def get_ingested_files() -> Dict[str, Dict[str, Any]]:
+def get_categories() -> List[Dict[str, Any]]:
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute("SELECT category, COUNT(*) as cnt FROM exams GROUP BY category")
+    counts = {r["category"]: r["cnt"] for r in cur.fetchall()}
+    total = sum(counts.values())
+    conn.close()
+
+    result = []
+    for cat in EXAM_CATEGORIES:
+        item = dict(cat)
+        if item["id"] == "all":
+            item["count"] = total
+        else:
+            item["count"] = counts.get(item["id"], 0)
+        result.append(item)
+    return result
+
+
+def get_ingested_files(category: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    conn = get_conn()
+    cur = conn.cursor()
+    query = """
         SELECT e.*, COUNT(q.id) as question_count
         FROM exams e
         LEFT JOIN questions q ON e.id = q.exam_id
-        GROUP BY e.id
-        ORDER BY e.id DESC
-    """)
+    """
+    params = []
+    if category and category != "all":
+        query += " WHERE e.category = ?"
+        params.append(category)
+    query += " GROUP BY e.id ORDER BY e.id DESC"
+    cur.execute(query, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return {r["filename"]: r for r in rows}
@@ -184,15 +287,26 @@ def get_slot_counts() -> Dict[str, int]:
     return {s["code"]: counts.get(s["code"], 0) for s in EXAM_SLOTS}
 
 
-def get_questions_by_slot(slot: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_questions_by_slot(slot: Optional[str] = None, category: Optional[str] = None) -> List[Dict[str, Any]]:
     conn = get_conn()
     cur = conn.cursor()
+    query = """
+        SELECT q.*, e.category, e.school_name as exam_school, e.exam_title, e.academic_year
+        FROM questions q
+        LEFT JOIN exams e ON q.exam_id = e.id
+    """
+    conditions = []
+    params = []
     if slot:
-        cur.execute(
-            "SELECT * FROM questions WHERE slot = ? ORDER BY id DESC", (slot,)
-        )
-    else:
-        cur.execute("SELECT * FROM questions ORDER BY slot, id DESC")
+        conditions.append("q.slot = ?")
+        params.append(slot)
+    if category and category != "all":
+        conditions.append("e.category = ?")
+        params.append(category)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY q.slot, q.id DESC"
+    cur.execute(query, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -272,10 +386,14 @@ def delete_question(qid: int) -> bool:
     return deleted
 
 
-def mix_exam(exclude_ids: Optional[List[int]] = None) -> Dict[str, Any]:
+def mix_exam(exclude_ids: Optional[List[int]] = None, category: Optional[str] = None) -> Dict[str, Any]:
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM questions")
+    cur.execute("""
+        SELECT q.*, coalesce(e.category, 'vao_10') as category
+        FROM questions q
+        LEFT JOIN exams e ON q.exam_id = e.id
+    """)
     all_q = [dict(r) for r in cur.fetchall()]
     conn.close()
 
@@ -294,9 +412,16 @@ def mix_exam(exclude_ids: Optional[List[int]] = None) -> Dict[str, Any]:
             selected[code] = None
             continue
 
+        # If a category is requested and has items in this slot, filter to it
+        matching = candidates
+        if category and category != "all":
+            in_cat = [c for c in candidates if c.get("category") == category]
+            if in_cat:
+                matching = in_cat
+
         # Prefer questions not in exclude_set if alternative exists
-        non_excluded = [c for c in candidates if c["id"] not in exclude_set]
-        pool = list(non_excluded if non_excluded else candidates)
+        non_excluded = [c for c in matching if c["id"] not in exclude_set]
+        pool = list(non_excluded if non_excluded else matching)
         random.shuffle(pool)
 
         iii1_topic = None
@@ -320,8 +445,10 @@ def mix_exam(exclude_ids: Optional[List[int]] = None) -> Dict[str, Any]:
     return selected
 
 
-def swap_question_in_slot(slot: str, current_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
-    candidates = get_questions_by_slot(slot)
+def swap_question_in_slot(slot: str, current_id: Optional[int] = None, category: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    candidates = get_questions_by_slot(slot, category=category)
+    if not candidates and category and category != "all":
+        candidates = get_questions_by_slot(slot)
     if not candidates:
         return None
     others = [c for c in candidates if c["id"] != current_id]
