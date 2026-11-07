@@ -177,7 +177,11 @@ def build_exam_docx(
     questions_by_slot: Dict[str, Optional[Dict[str, Any]]],
     header_info: Dict[str, str],
     include_solutions: bool = True,
+    grade: int = 9,
 ) -> bytes:
+    from database import get_structure, normalize_grade
+
+    grade = normalize_grade(grade)
     doc = Document()
 
     # Configure page margins (A4 compact exam layout)
@@ -234,13 +238,10 @@ def build_exam_docx(
 
     doc.add_paragraph()
 
-    # Structure of the 5 main problems
+    # Structure of the exam (depends on the grade: Toán 9 = 5 bài, Toán 6-8 = Trắc nghiệm + Tự luận)
     exam_sections = [
-        ("Bài I (1,5 điểm)", [("I.1", "1) "), ("I.2", "2) ")]),
-        ("Bài II (1,5 điểm)", [("II", "")]),
-        ("Bài III (2,5 điểm)", [("III.1", "1) "), ("III.2", "2) "), ("III.3", "3) ")]),
-        ("Bài IV (4,0 điểm)", [("IV.1", "1) "), ("IV.2", "2) ")]),
-        ("Bài V (0,5 điểm)", [("V", "")]),
+        (sec["title"], [(s["code"], s["prefix"]) for s in sec["slots"]])
+        for sec in get_structure(grade)
     ]
 
     for section_title, slots in exam_sections:

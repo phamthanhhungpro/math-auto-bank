@@ -13,6 +13,10 @@ from database import (
     init_db,
     EXAM_SLOTS,
     EXAM_CATEGORIES,
+    GRADES,
+    normalize_grade,
+    get_structure,
+    get_bank_slot_defs,
     get_categories,
     get_ingested_files,
     get_slot_counts,
@@ -143,12 +147,14 @@ class QARequest(BaseModel):
 class MixRequest(BaseModel):
     exclude_ids: List[int] = []
     category: Optional[str] = None
+    grade: Optional[int] = None
 
 
 class SwapRequest(BaseModel):
     slot: str
     current_id: Optional[int] = None
     category: Optional[str] = None
+    grade: Optional[int] = None
 
 
 class QuestionUpsertRequest(BaseModel):
@@ -157,6 +163,7 @@ class QuestionUpsertRequest(BaseModel):
     content: str
     solution: str = ""
     source_name: Optional[str] = None
+    grade: Optional[int] = None
 
 
 class SaveExamRequest(BaseModel):
@@ -169,6 +176,7 @@ class SaveExamRequest(BaseModel):
 class ExportDocxRequest(BaseModel):
     slot_question_ids: Dict[str, Optional[int]]
     custom_questions: Optional[Dict[str, Any]] = None
+    grade: Optional[int] = None
     org_name: str = "SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI"
     school_name: str = "ĐỀ THI CHÍNH THỨC"
     exam_title: str = "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT"
@@ -342,17 +350,18 @@ def api_admin_update_role(uid: int, req: RoleUpdateRequest, request: Request):
 
 
 @app.get("/api/categories")
-def api_get_categories():
-    return {"categories": get_categories()}
+def api_get_categories(grade: Optional[int] = None):
+    return {"categories": get_categories(grade)}
 
 
 @app.get("/api/status")
-def api_status(category: Optional[str] = None):
-    ingested = get_ingested_files(category)
-    slot_counts = get_slot_counts()
+def api_status(category: Optional[str] = None, grade: Optional[int] = None):
+    g = normalize_grade(grade)
+    ingested = get_ingested_files(category, g)
+    slot_counts = get_slot_counts(g)
 
     pdf_files = []
-    if os.path.exists(GRADE10_DIR):
+    if g == 9 and os.path.exists(GRADE10_DIR):
         all_files = [f for f in os.listdir(GRADE10_DIR) if f.lower().endswith(".pdf")]
         all_files.sort(
             key=lambda x: (
@@ -396,9 +405,20 @@ def api_status(category: Optional[str] = None):
                 },
             )
 
+    all_counts = {}
+    for gi in GRADES:
+        gc = get_slot_counts(gi["grade"])
+        all_counts[str(gi["grade"])] = {
+            "questions": sum(gc.values()),
+            "exams": len(get_ingested_files(None, gi["grade"])),
+        }
+
     return {
-        "slots": EXAM_SLOTS,
-        "categories": get_categories(),
+        "grade": g,
+        "grades": [dict(gi, **all_counts.get(str(gi["grade"]), {})) for gi in GRADES],
+        "structure": get_structure(g),
+        "slots": get_bank_slot_defs(g),
+        "categories": get_categories(g),
         "slot_counts": slot_counts,
         "total_questions": sum(slot_counts.values()),
         "total_ingested_exams": len(ingested),
@@ -413,8 +433,8 @@ def api_status(category: Optional[str] = None):
 
 
 @app.get("/api/questions")
-def api_questions(slot: Optional[str] = None, category: Optional[str] = None):
-    return {"questions": get_questions_by_slot(slot, category)}
+def api_questions(slot: Optional[str] = None, category: Optional[str] = None, grade: Optional[int] = None):
+    return {"questions": get_questions_by_slot(slot, category, normalize_grade(grade))}
 
 
 @app.post("/api/questions")
@@ -426,6 +446,7 @@ def api_create_question(req: QuestionUpsertRequest, request: Request):
         content=req.content,
         solution=req.solution,
         source_name=req.source_name or "Tự soạn",
+        grade=req.grade,
     )
     return {"ok": True, "question": q}
 
@@ -501,13 +522,16 @@ def api_qa_exam(req: QARequest, request: Request):
 def api_mix(req: Optional[MixRequest] = None):
     exclude = req.exclude_ids if req else []
     cat = req.category if req else None
-    mixed = mix_exam(exclude_ids=exclude, category=cat)
-    return {"ok": True, "exam": mixed}
+    grade = normalize_grade(req.grade if req else None)
+    mixed = mix_exam(exclude_ids=exclude, category=cat, grade=grade)
+    return {"ok": True, "exam": mixed, "grade": grade}
 
 
 @app.post("/api/swap")
 def api_swap(req: SwapRequest):
-    q = swap_question_in_slot(req.slot, req.current_id, category=req.category)
+    q = swap_question_in_slot(
+        req.slot, req.current_id, category=req.category, grade=normalize_grade(req.grade)
+    )
     if not q:
         raise HTTPException(status_code=404, detail=f"Chưa có câu hỏi cho vị trí {req.slot}")
     return {"ok": True, "question": q}
@@ -557,12 +581,14 @@ def api_export_docx(req: ExportDocxRequest):
         "exam_code": req.exam_code,
         "duration": req.duration,
     }
+    grade = normalize_grade(req.grade)
     docx_bytes = build_exam_docx(
         questions_by_slot=questions_by_slot,
         header_info=header_info,
         include_solutions=req.include_solutions,
+        grade=grade,
     )
-    filename = f"De_Toan_10_Ma_{req.exam_code}.docx"
+    filename = f"De_Toan_{grade if grade != 9 else 10}_Ma_{req.exam_code}.docx"
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

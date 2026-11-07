@@ -113,6 +113,199 @@ function getCategoriesWithCounts(state) {
   }));
 }
 
+// ---------------------------------------------------------------------------
+// GRADE (KHỐI LỚP) SUPPORT: Toán 6-7-8 dùng cấu trúc Trắc nghiệm + Tự luận, Toán 9 giữ khung 5 bài
+// ---------------------------------------------------------------------------
+const GRADES = [
+  { grade: 6, label: "Lớp 6", subtitle: "Toán 6 · Chương trình GDPT 2018" },
+  { grade: 7, label: "Lớp 7", subtitle: "Toán 7 · Chương trình GDPT 2018" },
+  { grade: 8, label: "Lớp 8", subtitle: "Toán 8 · Chương trình GDPT 2018" },
+  { grade: 9, label: "Lớp 9", subtitle: "Toán 9 · Ôn thi vào lớp 10" },
+];
+const DEFAULT_GRADE = 9;
+const THCS_TN_COUNT = 8;
+const THCS_CATEGORY_IDS = ["all", "giua_hk1", "cuoi_hk1", "giua_hk2", "cuoi_hk2", "chuyen_de"];
+const THCS_DEFAULT_TITLES = {
+  giua_hk1: "ĐỀ KIỂM TRA GIỮA HỌC KÌ 1",
+  cuoi_hk1: "ĐỀ KIỂM TRA CUỐI HỌC KÌ 1",
+  giua_hk2: "ĐỀ KIỂM TRA GIỮA HỌC KÌ 2",
+  cuoi_hk2: "ĐỀ KIỂM TRA CUỐI HỌC KÌ 2",
+  chuyen_de: "ĐỀ ÔN TẬP THEO ĐỀ CƯƠNG",
+};
+
+const THCS_SECTIONS = [
+  {
+    title: "PHẦN I. TRẮC NGHIỆM (2,0 điểm)",
+    slots: Array.from({ length: THCS_TN_COUNT }, (_, i) => ({
+      code: `TN.${i + 1}`,
+      bank: "TN",
+      prefix: `Câu ${i + 1}. `,
+      label: "Trắc nghiệm khách quan",
+      points: "0,25đ",
+    })),
+  },
+  {
+    title: "PHẦN II. TỰ LUẬN (8,0 điểm)",
+    slots: [
+      { code: "TL.1", bank: "TL.1", prefix: "Bài 1. ", label: "Tính toán / Biến đổi biểu thức", points: "2,0đ" },
+      { code: "TL.2", bank: "TL.2", prefix: "Bài 2. ", label: "Tìm x / Giải phương trình", points: "2,0đ" },
+      { code: "TL.3", bank: "TL.3", prefix: "Bài 3. ", label: "Toán thực tế / Bài toán có lời văn", points: "1,5đ" },
+      { code: "TL.4", bank: "TL.4", prefix: "Bài 4. ", label: "Hình học", points: "2,0đ" },
+      { code: "TL.5", bank: "TL.5", prefix: "Bài 5. ", label: "Vận dụng cao", points: "0,5đ" },
+    ],
+  },
+];
+
+function normalizeGrade(g) {
+  const n = Number(g);
+  return GRADES.some((x) => x.grade === n) ? n : DEFAULT_GRADE;
+}
+
+function getStructure(grade) {
+  if (normalizeGrade(grade) !== 9) return THCS_SECTIONS;
+  return EXAM_SECTIONS.map((sec) => ({
+    title: sec.title,
+    slots: sec.slots.map((s) => {
+      const info = EXAM_SLOTS.find((x) => x.code === s.code) || {};
+      return { code: s.code, bank: s.code, prefix: s.prefix, label: info.label || "", points: info.points || "" };
+    }),
+  }));
+}
+
+function getSlotDefs(grade) {
+  return getStructure(grade).flatMap((sec) => sec.slots);
+}
+
+function getBankSlotDefs(grade) {
+  if (normalizeGrade(grade) !== 9) {
+    return [
+      { code: "TN", group: "Phần I. Trắc nghiệm", label: "Trắc nghiệm khách quan", points: "0,25đ/câu" },
+      { code: "TL.1", group: "Phần II. Tự luận", label: "Bài 1 · Tính toán / Biến đổi biểu thức", points: "2,0đ" },
+      { code: "TL.2", group: "Phần II. Tự luận", label: "Bài 2 · Tìm x / Giải phương trình", points: "2,0đ" },
+      { code: "TL.3", group: "Phần II. Tự luận", label: "Bài 3 · Toán thực tế / Có lời văn", points: "1,5đ" },
+      { code: "TL.4", group: "Phần II. Tự luận", label: "Bài 4 · Hình học", points: "2,0đ" },
+      { code: "TL.5", group: "Phần II. Tự luận", label: "Bài 5 · Vận dụng cao", points: "0,5đ" },
+    ];
+  }
+  return EXAM_SLOTS;
+}
+
+function getCategoriesForGrade(exams, grade) {
+  const g = normalizeGrade(grade);
+  const counts = {};
+  for (const e of exams || []) {
+    const cat = e.category || "vao_10";
+    counts[cat] = (counts[cat] || 0) + 1;
+  }
+  const total = (exams || []).length;
+  const out = [];
+  for (const c of EXAM_CATEGORIES) {
+    if (g !== 9 && !THCS_CATEGORY_IDS.includes(c.id)) continue;
+    const item = { ...c, count: c.id === "all" ? total : counts[c.id] || 0 };
+    if (g !== 9) {
+      item.default_title =
+        c.id === "all" ? `ĐỀ KIỂM TRA MÔN TOÁN ${g} — TỔNG HỢP` : `${THCS_DEFAULT_TITLES[c.id] || "ĐỀ KIỂM TRA"} — MÔN TOÁN ${g}`;
+      item.default_duration = "90 phút";
+      const desc = {
+        all: `Toàn bộ kho đề kiểm tra Toán ${g} từ nhiều trường THCS trên cả nước.`,
+        giua_hk1: `Đề khảo sát giữa học kì 1 môn Toán ${g} bám sát chương trình GDPT 2018.`,
+        cuoi_hk1: `Đề kiểm tra cuối học kì 1 môn Toán ${g}: trắc nghiệm kết hợp tự luận.`,
+        giua_hk2: `Đề khảo sát giữa học kì 2 môn Toán ${g} theo cấu trúc mới.`,
+        cuoi_hk2: `Đề kiểm tra cuối học kì 2 môn Toán ${g}: tổng hợp kiến thức cả năm.`,
+        chuyen_de: `Bài tập ôn tập trích từ đề cương Toán ${g} của các trường.`,
+      };
+      item.description = desc[c.id] || "";
+    }
+    out.push(item);
+  }
+  return out;
+}
+
+// Ngân hàng khối 6-8 là dữ liệu tĩnh (public/data/grade-N.json), nạp lười theo từng khối.
+let gradeIndexCache = null;
+async function getGradeIndex(env, reqUrl) {
+  if (gradeIndexCache) return gradeIndexCache;
+  let idx = {};
+  try {
+    const assetUrl = new URL("/data/index.json", reqUrl);
+    const resp = env.ASSETS ? await env.ASSETS.fetch(new Request(assetUrl)) : await fetch(assetUrl);
+    if (resp && resp.ok) idx = await resp.json();
+  } catch (_) {}
+  gradeIndexCache = idx;
+  return idx;
+}
+
+const gradeBankCache = {};
+async function getBank(env, state, grade, reqUrl) {
+  const g = normalizeGrade(grade);
+  if (g === 9) return { exams: state.exams, questions: state.questions, readonly: false };
+  if (gradeBankCache[g]) return gradeBankCache[g];
+  let data = { exams: [], questions: [] };
+  try {
+    const assetUrl = new URL(`/data/grade-${g}.json`, reqUrl);
+    const resp = env.ASSETS ? await env.ASSETS.fetch(new Request(assetUrl)) : await fetch(assetUrl);
+    if (resp && resp.ok) data = await resp.json();
+  } catch (_) {}
+  gradeBankCache[g] = { exams: data.exams || [], questions: data.questions || [], readonly: true };
+  return gradeBankCache[g];
+}
+
+function mixExamFromBank(questions, grade, category, excludeIds) {
+  const g = normalizeGrade(grade);
+  const excludeSet = new Set((excludeIds || []).map(Number));
+  const byBank = {};
+  for (const q of questions) {
+    if (!byBank[q.slot]) byBank[q.slot] = [];
+    byBank[q.slot].push(q);
+  }
+  const selected = {};
+  const usedExamCounts = {};
+  const usedTopics = {};
+  const chosenIds = new Set();
+
+  for (const s of getSlotDefs(g)) {
+    const code = s.code;
+    let candidates = (byBank[s.bank || code] || []).filter((c) => !chosenIds.has(c.id));
+    if (!candidates.length) {
+      selected[code] = null;
+      continue;
+    }
+    if ((s.bank || code) === "TN") {
+      const mcq = candidates.filter((c) => (c.qkind || "mcq") === "mcq");
+      if (mcq.length) candidates = mcq;
+    }
+    let matching = candidates;
+    if (category && category !== "all") {
+      const inCat = candidates.filter((c) => (c.category || "vao_10") === category);
+      if (inCat.length > 0) matching = inCat;
+    }
+    const nonExcluded = matching.filter((c) => !excludeSet.has(c.id));
+    const pool = [...(nonExcluded.length ? nonExcluded : matching)];
+
+    const iii1Topic =
+      code === "III.2" && selected["III.1"] ? String(selected["III.1"].sub_topic || "").trim().toLowerCase() : null;
+
+    const scored = pool.map((c) => {
+      const topicKey = String(c.sub_topic || "").trim().toLowerCase();
+      const topicPenalty = iii1Topic && topicKey === iii1Topic ? 10 : 0;
+      const repeatTopic = g !== 9 && topicKey ? usedTopics[topicKey] || 0 : 0;
+      return { c, key: [topicPenalty, repeatTopic, usedExamCounts[c.exam_id || 0] || 0, Math.random()] };
+    });
+    scored.sort((a, b) => {
+      for (let i = 0; i < a.key.length; i++) if (a.key[i] !== b.key[i]) return a.key[i] - b.key[i];
+      return 0;
+    });
+    const chosen = scored[0].c;
+    selected[code] = chosen;
+    chosenIds.add(chosen.id);
+    const ek = chosen.exam_id || 0;
+    usedExamCounts[ek] = (usedExamCounts[ek] || 0) + 1;
+    const tk = String(chosen.sub_topic || "").trim().toLowerCase();
+    if (tk) usedTopics[tk] = (usedTopics[tk] || 0) + 1;
+  }
+  return selected;
+}
+
 const SEEDED_USERS = [
   {
     id: 1,
@@ -922,13 +1115,34 @@ function makeTableXml(htmlTable) {
   return `<w:tbl><w:tblPr><w:jc w:val="center"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders></w:tblPr>${rowsXml}</w:tbl>`;
 }
 
-function makeImageDrawingXml(relId, docPrId) {
-  const cx = 2400000;
-  const cy = 1650000;
+// Đọc kích thước ảnh PNG từ header để giữ đúng tỉ lệ khi chèn vào Word
+function pngDimensions(bytes) {
+  try {
+    if (bytes.length > 24 && bytes[0] === 0x89 && bytes[1] === 0x50) {
+      const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      return { w: dv.getUint32(16), h: dv.getUint32(20) };
+    }
+  } catch (_) {}
+  return null;
+}
+
+function makeImageDrawingXml(relId, docPrId, dims) {
+  const MAX_W = 2560320; // 2,8 inch
+  const MAX_H = 2286000; // 2,5 inch
+  let cx = 2400000;
+  let cy = 1650000;
+  if (dims && dims.w > 0 && dims.h > 0) {
+    cx = MAX_W;
+    cy = Math.round((cx * dims.h) / dims.w);
+    if (cy > MAX_H) {
+      cy = MAX_H;
+      cx = Math.round((cy * dims.w) / dims.h);
+    }
+  }
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="Picture ${docPrId}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="image${docPrId}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
-async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env, reqUrl) {
+async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env, reqUrl, grade = 9) {
   const mediaFiles = [];
   const relEntries = [];
   let bodyXml = "";
@@ -938,13 +1152,14 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   bodyXml += makeRichParagraphXml(`${headerInfo.exam_title} (Năm học ${headerInfo.academic_year})`, { align: "center", bold: true, sz: 26 });
   bodyXml += makeRichParagraphXml(`Môn: TOÁN — Mã đề: ${headerInfo.exam_code} — Thời gian: ${headerInfo.duration}`, { align: "center", italic: true, sz: 22 });
 
-  for (const sec of EXAM_SECTIONS) {
+  for (const sec of getStructure(grade)) {
     bodyXml += makeRichParagraphXml(sec.title, { bold: true, sz: 26 });
     for (const slotObj of sec.slots) {
       const q = questionsBySlot[slotObj.code];
       if (!q) continue;
 
       let imgRelId = null;
+      let imgDims = null;
       if (q.figure_path) {
         try {
           let imgBytes = null;
@@ -965,6 +1180,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
           if (imgBytes && imgBytes.length > 0) {
             const imgName = `image${imgCounter}.png`;
             imgRelId = `rIdImg${imgCounter}`;
+            imgDims = pngDimensions(imgBytes);
             mediaFiles.push({ name: `word/media/${imgName}`, data: imgBytes });
             relEntries.push(`<Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`);
             imgCounter++;
@@ -982,7 +1198,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
         const trimmed = part.trim();
         if (trimmed === "{{FIGURE}}") {
           if (imgRelId) {
-            bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 100);
+            bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 100, imgDims);
             figRendered = true;
           }
         } else if (trimmed.toLowerCase().startsWith("<table")) {
@@ -999,7 +1215,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
       }
 
       if (imgRelId && !figRendered) {
-        bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 200);
+        bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 200, imgDims);
       }
     }
   }
@@ -1009,11 +1225,13 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   if (includeSolutions) {
     bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
     bodyXml += makeRichParagraphXml(`ĐÁP ÁN & HƯỚNG DẪN CHẤM — MÃ ĐỀ ${headerInfo.exam_code}`, { align: "center", bold: true, sz: 26 });
-    for (const s of EXAM_SLOTS) {
+    for (const s of getSlotDefs(grade)) {
       const q = questionsBySlot[s.code];
       if (!q) continue;
       const sol = q.solution || "Xem lời giải chi tiết.";
-      bodyXml += makeRichParagraphXml(`[${q.source_name}] ${sol}`, { prefix: `Câu ${s.code}: ` });
+      bodyXml += makeRichParagraphXml(`[${q.source_name}] ${sol}`, {
+        prefix: grade === 9 ? `Câu ${s.code}: ` : `${(s.prefix || "").trim() || s.code} `,
+      });
     }
   }
 
@@ -1371,21 +1589,25 @@ export default {
 
         // --- CATEGORIES ENDPOINT ---
         if (path === "/api/categories" && method === "GET") {
-          return jsonResponse({ categories: getCategoriesWithCounts(state) });
+          const gParam = url.searchParams.get("grade");
+          const bank = await getBank(env, state, gParam, request.url);
+          return jsonResponse({ categories: getCategoriesForGrade(bank.exams, gParam) });
         }
 
         // 1. GET /api/status
         if (path === "/api/status" && method === "GET") {
+          const grade = normalizeGrade(url.searchParams.get("grade"));
+          const bank = await getBank(env, state, grade, request.url);
           const slotCounts = {};
-          for (const s of EXAM_SLOTS) slotCounts[s.code] = 0;
+          for (const s of getBankSlotDefs(grade)) slotCounts[s.code] = 0;
           const examQCounts = {};
-          for (const q of state.questions) {
+          for (const q of bank.questions) {
             slotCounts[q.slot] = (slotCounts[q.slot] || 0) + 1;
             if (q.exam_id) examQCounts[q.exam_id] = (examQCounts[q.exam_id] || 0) + 1;
           }
 
           const categoryFilter = url.searchParams.get("category");
-          let examList = [...state.exams];
+          let examList = [...bank.exams];
           if (categoryFilter && categoryFilter !== "all") {
             examList = examList.filter((e) => (e.category || "vao_10") === categoryFilter);
           }
@@ -1404,13 +1626,27 @@ export default {
               exam_id: e.id,
             }));
 
+          // Tổng quan từng khối: khối 6-8 lấy từ chỉ mục nhẹ (public/data/index.json), không nạp toàn bộ ngân hàng
+          const gradeIndex = await getGradeIndex(env, request.url);
+          const gradeStats = {};
+          for (const gi of GRADES) {
+            if (gi.grade === 9) {
+              gradeStats[9] = { questions: state.questions.length, exams: state.exams.length };
+            } else {
+              gradeStats[gi.grade] = gradeIndex[gi.grade] || { questions: 0, exams: 0 };
+            }
+          }
+
           return jsonResponse({
-            slots: EXAM_SLOTS,
-            categories: getCategoriesWithCounts(state),
+            grade,
+            grades: GRADES.map((gi) => ({ ...gi, ...(gradeStats[gi.grade] || {}) })),
+            structure: getStructure(grade),
+            slots: getBankSlotDefs(grade),
+            categories: getCategoriesForGrade(bank.exams, grade),
             slot_counts: slotCounts,
-            total_questions: state.questions.length,
+            total_questions: bank.questions.length,
             total_pdf_files: pdfFiles.length,
-            total_ingested_exams: state.exams.length,
+            total_ingested_exams: bank.exams.length,
             saved_exams_count: (state.saved_exams || []).length,
             pdf_files: pdfFiles,
           });
@@ -1421,7 +1657,8 @@ export default {
           const slot = url.searchParams.get("slot");
           const category = url.searchParams.get("category");
           const search = (url.searchParams.get("search") || "").trim().toLowerCase();
-          let list = [...state.questions].sort((a, b) => b.id - a.id);
+          const bank = await getBank(env, state, url.searchParams.get("grade"), request.url);
+          let list = [...bank.questions].sort((a, b) => b.id - a.id);
           if (slot && slot !== "ALL") list = list.filter((q) => q.slot === slot);
           if (category && category !== "all") {
             list = list.filter((q) => (q.category || "vao_10") === category);
@@ -1443,7 +1680,14 @@ export default {
             return jsonResponse({ detail: "Cần quyền Quản trị viên (Admin) để thêm câu hỏi vào ngân hàng chung" }, 403);
           }
           const body = await request.json();
-          const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 0);
+          if (body.grade && normalizeGrade(body.grade) !== 9) {
+            return jsonResponse(
+              { detail: "Ngân hàng Toán 6-7-8 là dữ liệu chỉ đọc trên bản online. Hãy thêm câu hỏi ở bản quản trị gốc rồi đồng bộ." },
+              409
+            );
+          }
+          // Id tự soạn bắt đầu từ 900000 để không trùng id của ngân hàng khối 6-8 (chỉ đọc)
+          const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 900000);
           const created = {
             id: maxId + 1,
             exam_id: null,
@@ -1453,6 +1697,7 @@ export default {
             figure_path: null,
             solution: body.solution || "",
             source_name: body.source_name || "Tự soạn",
+            category: "vao_10",
           };
           state.questions.push(created);
           await persistState(env, state);
@@ -1468,7 +1713,12 @@ export default {
           if (method === "PUT") {
             const body = await request.json();
             const idx = state.questions.findIndex((q) => q.id === qid);
-            if (idx === -1) return jsonResponse({ detail: "Không tìm thấy câu hỏi" }, 404);
+            if (idx === -1) {
+              return jsonResponse(
+                { detail: "Không tìm thấy câu hỏi (ngân hàng Toán 6-7-8 là dữ liệu chỉ đọc trên bản online)" },
+                404
+              );
+            }
             state.questions[idx] = {
               ...state.questions[idx],
               slot: body.slot || state.questions[idx].slot,
@@ -1503,67 +1753,25 @@ export default {
         if (path === "/api/mix" && method === "POST") {
           let excludeIds = [];
           let category = "vao_10";
+          let gradeParam = null;
           try {
             const body = await request.json();
             excludeIds = body.exclude_ids || [];
             if (body.category) category = body.category;
+            gradeParam = body.grade;
           } catch (_) {}
-          const excludeSet = new Set(excludeIds.map(Number));
-
-          const bySlot = {};
-          for (const q of state.questions) {
-            if (!bySlot[q.slot]) bySlot[q.slot] = [];
-            bySlot[q.slot].push(q);
-          }
-
-          const selected = {};
-          const usedExamCounts = {};
-
-          for (const s of EXAM_SLOTS) {
-            const code = s.code;
-            const candidates = bySlot[code] || [];
-            if (!candidates.length) {
-              selected[code] = null;
-              continue;
-            }
-
-            let matching = candidates;
-            if (category && category !== "all") {
-              const inCat = candidates.filter((c) => (c.category || "vao_10") === category);
-              if (inCat.length > 0) matching = inCat;
-            }
-
-            const nonExcluded = matching.filter((c) => !excludeSet.has(c.id));
-            const pool = [...(nonExcluded.length ? nonExcluded : matching)];
-
-            const iii1Topic =
-              code === "III.2" && selected["III.1"]
-                ? String(selected["III.1"].sub_topic || "").trim().toLowerCase()
-                : null;
-
-            pool.sort((a, b) => {
-              const penA = iii1Topic && String(a.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
-              const penB = iii1Topic && String(b.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
-              if (penA !== penB) return penA - penB;
-              const useA = usedExamCounts[a.exam_id || 0] || 0;
-              const useB = usedExamCounts[b.exam_id || 0] || 0;
-              if (useA !== useB) return useA - useB;
-              return Math.random() - 0.5;
-            });
-
-            const chosen = pool[0];
-            selected[code] = chosen;
-            const ek = chosen.exam_id || 0;
-            usedExamCounts[ek] = (usedExamCounts[ek] || 0) + 1;
-          }
-
-          return jsonResponse({ ok: true, exam: selected });
+          const grade = normalizeGrade(gradeParam);
+          if (grade !== 9 && category === "vao_10") category = "all";
+          const bank = await getBank(env, state, grade, request.url);
+          const selected = mixExamFromBank(bank.questions, grade, category, excludeIds);
+          return jsonResponse({ ok: true, exam: selected, grade });
         }
 
         // 7. POST /api/swap
         if (path === "/api/swap" && method === "POST") {
           const body = await request.json();
-          let candidates = state.questions.filter((q) => q.slot === body.slot);
+          const bank = await getBank(env, state, body.grade, request.url);
+          let candidates = bank.questions.filter((q) => q.slot === body.slot);
           if (body.category && body.category !== "all") {
             const inCat = candidates.filter((q) => (q.category || "vao_10") === body.category);
             if (inCat.length > 0) candidates = inCat;
@@ -1639,6 +1847,8 @@ export default {
         // 10. POST /api/export-docx
         if (path === "/api/export-docx" && method === "POST") {
           const body = await request.json();
+          const grade = normalizeGrade(body.grade);
+          const exportBank = await getBank(env, state, grade, request.url);
           const slotIds = body.slot_question_ids || {};
           const customQuestions = body.custom_questions || {};
           const questionsBySlot = {};
@@ -1647,7 +1857,7 @@ export default {
             if (customQuestions[slotCode]) {
               questionsBySlot[slotCode] = customQuestions[slotCode];
             } else if (qId) {
-              questionsBySlot[slotCode] = state.questions.find((q) => q.id === Number(qId)) || null;
+              questionsBySlot[slotCode] = exportBank.questions.find((q) => q.id === Number(qId)) || null;
             } else {
               questionsBySlot[slotCode] = null;
             }
@@ -1667,14 +1877,15 @@ export default {
             headerInfo,
             body.include_solutions !== false,
             env,
-            request.url
+            request.url,
+            grade
           );
 
           return new Response(docxBytes, {
             status: 200,
             headers: {
               "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-              "Content-Disposition": `attachment; filename="De_Toan_10_Ma_${headerInfo.exam_code}.docx"`,
+              "Content-Disposition": `attachment; filename="De_Toan_${grade === 9 ? 10 : grade}_Ma_${headerInfo.exam_code}.docx"`,
             },
           });
         }

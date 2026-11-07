@@ -8896,17 +8896,181 @@ var EXAM_CATEGORIES = [
     description: "C\xE1c chuy\xEAn \u0111\u1EC1 r\xE8n luy\u1EC7n n\xE2ng cao: B\u1EA5t \u0111\u1EB3ng th\u1EE9c Min/Max, M\xF4 h\xECnh h\xECnh h\u1ECDc ph\u1EB3ng v\xE0 To\xE1n th\u1EF1c t\u1EBF."
   }
 ];
-function getCategoriesWithCounts(state) {
+var GRADES = [
+  { grade: 6, label: "L\u1EDBp 6", subtitle: "To\xE1n 6 \xB7 Ch\u01B0\u01A1ng tr\xECnh GDPT 2018" },
+  { grade: 7, label: "L\u1EDBp 7", subtitle: "To\xE1n 7 \xB7 Ch\u01B0\u01A1ng tr\xECnh GDPT 2018" },
+  { grade: 8, label: "L\u1EDBp 8", subtitle: "To\xE1n 8 \xB7 Ch\u01B0\u01A1ng tr\xECnh GDPT 2018" },
+  { grade: 9, label: "L\u1EDBp 9", subtitle: "To\xE1n 9 \xB7 \xD4n thi v\xE0o l\u1EDBp 10" }
+];
+var DEFAULT_GRADE = 9;
+var THCS_TN_COUNT = 8;
+var THCS_CATEGORY_IDS = ["all", "giua_hk1", "cuoi_hk1", "giua_hk2", "cuoi_hk2", "chuyen_de"];
+var THCS_DEFAULT_TITLES = {
+  giua_hk1: "\u0110\u1EC0 KI\u1EC2M TRA GI\u1EEEA H\u1ECCC K\xCC 1",
+  cuoi_hk1: "\u0110\u1EC0 KI\u1EC2M TRA CU\u1ED0I H\u1ECCC K\xCC 1",
+  giua_hk2: "\u0110\u1EC0 KI\u1EC2M TRA GI\u1EEEA H\u1ECCC K\xCC 2",
+  cuoi_hk2: "\u0110\u1EC0 KI\u1EC2M TRA CU\u1ED0I H\u1ECCC K\xCC 2",
+  chuyen_de: "\u0110\u1EC0 \xD4N T\u1EACP THEO \u0110\u1EC0 C\u01AF\u01A0NG"
+};
+var THCS_SECTIONS = [
+  {
+    title: "PH\u1EA6N I. TR\u1EAEC NGHI\u1EC6M (2,0 \u0111i\u1EC3m)",
+    slots: Array.from({ length: THCS_TN_COUNT }, (_, i) => ({
+      code: `TN.${i + 1}`,
+      bank: "TN",
+      prefix: `C\xE2u ${i + 1}. `,
+      label: "Tr\u1EAFc nghi\u1EC7m kh\xE1ch quan",
+      points: "0,25\u0111"
+    }))
+  },
+  {
+    title: "PH\u1EA6N II. T\u1EF0 LU\u1EACN (8,0 \u0111i\u1EC3m)",
+    slots: [
+      { code: "TL.1", bank: "TL.1", prefix: "B\xE0i 1. ", label: "T\xEDnh to\xE1n / Bi\u1EBFn \u0111\u1ED5i bi\u1EC3u th\u1EE9c", points: "2,0\u0111" },
+      { code: "TL.2", bank: "TL.2", prefix: "B\xE0i 2. ", label: "T\xECm x / Gi\u1EA3i ph\u01B0\u01A1ng tr\xECnh", points: "2,0\u0111" },
+      { code: "TL.3", bank: "TL.3", prefix: "B\xE0i 3. ", label: "To\xE1n th\u1EF1c t\u1EBF / B\xE0i to\xE1n c\xF3 l\u1EDDi v\u0103n", points: "1,5\u0111" },
+      { code: "TL.4", bank: "TL.4", prefix: "B\xE0i 4. ", label: "H\xECnh h\u1ECDc", points: "2,0\u0111" },
+      { code: "TL.5", bank: "TL.5", prefix: "B\xE0i 5. ", label: "V\u1EADn d\u1EE5ng cao", points: "0,5\u0111" }
+    ]
+  }
+];
+function normalizeGrade(g) {
+  const n = Number(g);
+  return GRADES.some((x) => x.grade === n) ? n : DEFAULT_GRADE;
+}
+function getStructure(grade) {
+  if (normalizeGrade(grade) !== 9) return THCS_SECTIONS;
+  return EXAM_SECTIONS.map((sec) => ({
+    title: sec.title,
+    slots: sec.slots.map((s) => {
+      const info = EXAM_SLOTS.find((x) => x.code === s.code) || {};
+      return { code: s.code, bank: s.code, prefix: s.prefix, label: info.label || "", points: info.points || "" };
+    })
+  }));
+}
+function getSlotDefs(grade) {
+  return getStructure(grade).flatMap((sec) => sec.slots);
+}
+function getBankSlotDefs(grade) {
+  if (normalizeGrade(grade) !== 9) {
+    return [
+      { code: "TN", group: "Ph\u1EA7n I. Tr\u1EAFc nghi\u1EC7m", label: "Tr\u1EAFc nghi\u1EC7m kh\xE1ch quan", points: "0,25\u0111/c\xE2u" },
+      { code: "TL.1", group: "Ph\u1EA7n II. T\u1EF1 lu\u1EADn", label: "B\xE0i 1 \xB7 T\xEDnh to\xE1n / Bi\u1EBFn \u0111\u1ED5i bi\u1EC3u th\u1EE9c", points: "2,0\u0111" },
+      { code: "TL.2", group: "Ph\u1EA7n II. T\u1EF1 lu\u1EADn", label: "B\xE0i 2 \xB7 T\xECm x / Gi\u1EA3i ph\u01B0\u01A1ng tr\xECnh", points: "2,0\u0111" },
+      { code: "TL.3", group: "Ph\u1EA7n II. T\u1EF1 lu\u1EADn", label: "B\xE0i 3 \xB7 To\xE1n th\u1EF1c t\u1EBF / C\xF3 l\u1EDDi v\u0103n", points: "1,5\u0111" },
+      { code: "TL.4", group: "Ph\u1EA7n II. T\u1EF1 lu\u1EADn", label: "B\xE0i 4 \xB7 H\xECnh h\u1ECDc", points: "2,0\u0111" },
+      { code: "TL.5", group: "Ph\u1EA7n II. T\u1EF1 lu\u1EADn", label: "B\xE0i 5 \xB7 V\u1EADn d\u1EE5ng cao", points: "0,5\u0111" }
+    ];
+  }
+  return EXAM_SLOTS;
+}
+function getCategoriesForGrade(exams, grade) {
+  const g = normalizeGrade(grade);
   const counts = {};
-  for (const e of state.exams || []) {
+  for (const e of exams || []) {
     const cat = e.category || "vao_10";
     counts[cat] = (counts[cat] || 0) + 1;
   }
-  const total = (state.exams || []).length;
-  return EXAM_CATEGORIES.map((c) => ({
-    ...c,
-    count: c.id === "all" ? total : counts[c.id] || 0
-  }));
+  const total = (exams || []).length;
+  const out = [];
+  for (const c of EXAM_CATEGORIES) {
+    if (g !== 9 && !THCS_CATEGORY_IDS.includes(c.id)) continue;
+    const item = { ...c, count: c.id === "all" ? total : counts[c.id] || 0 };
+    if (g !== 9) {
+      item.default_title = c.id === "all" ? `\u0110\u1EC0 KI\u1EC2M TRA M\xD4N TO\xC1N ${g} \u2014 T\u1ED4NG H\u1EE2P` : `${THCS_DEFAULT_TITLES[c.id] || "\u0110\u1EC0 KI\u1EC2M TRA"} \u2014 M\xD4N TO\xC1N ${g}`;
+      item.default_duration = "90 ph\xFAt";
+      const desc = {
+        all: `To\xE0n b\u1ED9 kho \u0111\u1EC1 ki\u1EC3m tra To\xE1n ${g} t\u1EEB nhi\u1EC1u tr\u01B0\u1EDDng THCS tr\xEAn c\u1EA3 n\u01B0\u1EDBc.`,
+        giua_hk1: `\u0110\u1EC1 kh\u1EA3o s\xE1t gi\u1EEFa h\u1ECDc k\xEC 1 m\xF4n To\xE1n ${g} b\xE1m s\xE1t ch\u01B0\u01A1ng tr\xECnh GDPT 2018.`,
+        cuoi_hk1: `\u0110\u1EC1 ki\u1EC3m tra cu\u1ED1i h\u1ECDc k\xEC 1 m\xF4n To\xE1n ${g}: tr\u1EAFc nghi\u1EC7m k\u1EBFt h\u1EE3p t\u1EF1 lu\u1EADn.`,
+        giua_hk2: `\u0110\u1EC1 kh\u1EA3o s\xE1t gi\u1EEFa h\u1ECDc k\xEC 2 m\xF4n To\xE1n ${g} theo c\u1EA5u tr\xFAc m\u1EDBi.`,
+        cuoi_hk2: `\u0110\u1EC1 ki\u1EC3m tra cu\u1ED1i h\u1ECDc k\xEC 2 m\xF4n To\xE1n ${g}: t\u1ED5ng h\u1EE3p ki\u1EBFn th\u1EE9c c\u1EA3 n\u0103m.`,
+        chuyen_de: `B\xE0i t\u1EADp \xF4n t\u1EADp tr\xEDch t\u1EEB \u0111\u1EC1 c\u01B0\u01A1ng To\xE1n ${g} c\u1EE7a c\xE1c tr\u01B0\u1EDDng.`
+      };
+      item.description = desc[c.id] || "";
+    }
+    out.push(item);
+  }
+  return out;
+}
+var gradeIndexCache = null;
+async function getGradeIndex(env, reqUrl) {
+  if (gradeIndexCache) return gradeIndexCache;
+  let idx = {};
+  try {
+    const assetUrl = new URL("/data/index.json", reqUrl);
+    const resp = env.ASSETS ? await env.ASSETS.fetch(new Request(assetUrl)) : await fetch(assetUrl);
+    if (resp && resp.ok) idx = await resp.json();
+  } catch (_) {
+  }
+  gradeIndexCache = idx;
+  return idx;
+}
+var gradeBankCache = {};
+async function getBank(env, state, grade, reqUrl) {
+  const g = normalizeGrade(grade);
+  if (g === 9) return { exams: state.exams, questions: state.questions, readonly: false };
+  if (gradeBankCache[g]) return gradeBankCache[g];
+  let data = { exams: [], questions: [] };
+  try {
+    const assetUrl = new URL(`/data/grade-${g}.json`, reqUrl);
+    const resp = env.ASSETS ? await env.ASSETS.fetch(new Request(assetUrl)) : await fetch(assetUrl);
+    if (resp && resp.ok) data = await resp.json();
+  } catch (_) {
+  }
+  gradeBankCache[g] = { exams: data.exams || [], questions: data.questions || [], readonly: true };
+  return gradeBankCache[g];
+}
+function mixExamFromBank(questions, grade, category, excludeIds) {
+  const g = normalizeGrade(grade);
+  const excludeSet = new Set((excludeIds || []).map(Number));
+  const byBank = {};
+  for (const q of questions) {
+    if (!byBank[q.slot]) byBank[q.slot] = [];
+    byBank[q.slot].push(q);
+  }
+  const selected = {};
+  const usedExamCounts = {};
+  const usedTopics = {};
+  const chosenIds = /* @__PURE__ */ new Set();
+  for (const s of getSlotDefs(g)) {
+    const code = s.code;
+    let candidates = (byBank[s.bank || code] || []).filter((c) => !chosenIds.has(c.id));
+    if (!candidates.length) {
+      selected[code] = null;
+      continue;
+    }
+    if ((s.bank || code) === "TN") {
+      const mcq = candidates.filter((c) => (c.qkind || "mcq") === "mcq");
+      if (mcq.length) candidates = mcq;
+    }
+    let matching = candidates;
+    if (category && category !== "all") {
+      const inCat = candidates.filter((c) => (c.category || "vao_10") === category);
+      if (inCat.length > 0) matching = inCat;
+    }
+    const nonExcluded = matching.filter((c) => !excludeSet.has(c.id));
+    const pool = [...nonExcluded.length ? nonExcluded : matching];
+    const iii1Topic = code === "III.2" && selected["III.1"] ? String(selected["III.1"].sub_topic || "").trim().toLowerCase() : null;
+    const scored = pool.map((c) => {
+      const topicKey = String(c.sub_topic || "").trim().toLowerCase();
+      const topicPenalty = iii1Topic && topicKey === iii1Topic ? 10 : 0;
+      const repeatTopic = g !== 9 && topicKey ? usedTopics[topicKey] || 0 : 0;
+      return { c, key: [topicPenalty, repeatTopic, usedExamCounts[c.exam_id || 0] || 0, Math.random()] };
+    });
+    scored.sort((a, b) => {
+      for (let i = 0; i < a.key.length; i++) if (a.key[i] !== b.key[i]) return a.key[i] - b.key[i];
+      return 0;
+    });
+    const chosen = scored[0].c;
+    selected[code] = chosen;
+    chosenIds.add(chosen.id);
+    const ek = chosen.exam_id || 0;
+    usedExamCounts[ek] = (usedExamCounts[ek] || 0) + 1;
+    const tk = String(chosen.sub_topic || "").trim().toLowerCase();
+    if (tk) usedTopics[tk] = (usedTopics[tk] || 0) + 1;
+  }
+  return selected;
 }
 var SEEDED_USERS = [
   {
@@ -9608,12 +9772,32 @@ function makeTableXml(htmlTable) {
   }
   return `<w:tbl><w:tblPr><w:jc w:val="center"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders></w:tblPr>${rowsXml}</w:tbl>`;
 }
-function makeImageDrawingXml(relId, docPrId) {
-  const cx = 24e5;
-  const cy = 165e4;
+function pngDimensions(bytes) {
+  try {
+    if (bytes.length > 24 && bytes[0] === 137 && bytes[1] === 80) {
+      const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      return { w: dv.getUint32(16), h: dv.getUint32(20) };
+    }
+  } catch (_) {
+  }
+  return null;
+}
+function makeImageDrawingXml(relId, docPrId, dims) {
+  const MAX_W = 2560320;
+  const MAX_H = 2286e3;
+  let cx = 24e5;
+  let cy = 165e4;
+  if (dims && dims.w > 0 && dims.h > 0) {
+    cx = MAX_W;
+    cy = Math.round(cx * dims.h / dims.w);
+    if (cy > MAX_H) {
+      cy = MAX_H;
+      cx = Math.round(cy * dims.w / dims.h);
+    }
+  }
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="Picture ${docPrId}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="image${docPrId}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
-async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env, reqUrl) {
+async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env, reqUrl, grade = 9) {
   const mediaFiles = [];
   const relEntries = [];
   let bodyXml = "";
@@ -9621,12 +9805,13 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   bodyXml += makeRichParagraphXml(`${headerInfo.org_name} \u2014 ${headerInfo.school_name}`, { align: "center", bold: true, sz: 24 });
   bodyXml += makeRichParagraphXml(`${headerInfo.exam_title} (N\u0103m h\u1ECDc ${headerInfo.academic_year})`, { align: "center", bold: true, sz: 26 });
   bodyXml += makeRichParagraphXml(`M\xF4n: TO\xC1N \u2014 M\xE3 \u0111\u1EC1: ${headerInfo.exam_code} \u2014 Th\u1EDDi gian: ${headerInfo.duration}`, { align: "center", italic: true, sz: 22 });
-  for (const sec of EXAM_SECTIONS) {
+  for (const sec of getStructure(grade)) {
     bodyXml += makeRichParagraphXml(sec.title, { bold: true, sz: 26 });
     for (const slotObj of sec.slots) {
       const q = questionsBySlot[slotObj.code];
       if (!q) continue;
       let imgRelId = null;
+      let imgDims = null;
       if (q.figure_path) {
         try {
           let imgBytes = null;
@@ -9645,6 +9830,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
           if (imgBytes && imgBytes.length > 0) {
             const imgName = `image${imgCounter}.png`;
             imgRelId = `rIdImg${imgCounter}`;
+            imgDims = pngDimensions(imgBytes);
             mediaFiles.push({ name: `word/media/${imgName}`, data: imgBytes });
             relEntries.push(`<Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imgName}"/>`);
             imgCounter++;
@@ -9661,7 +9847,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
         const trimmed = part.trim();
         if (trimmed === "{{FIGURE}}") {
           if (imgRelId) {
-            bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 100);
+            bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 100, imgDims);
             figRendered = true;
           }
         } else if (trimmed.toLowerCase().startsWith("<table")) {
@@ -9677,7 +9863,7 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
         }
       }
       if (imgRelId && !figRendered) {
-        bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 200);
+        bodyXml += makeImageDrawingXml(imgRelId, imgCounter + 200, imgDims);
       }
     }
   }
@@ -9685,11 +9871,13 @@ async function buildDocxBytes(questionsBySlot, headerInfo, includeSolutions, env
   if (includeSolutions) {
     bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
     bodyXml += makeRichParagraphXml(`\u0110\xC1P \xC1N & H\u01AF\u1EDANG D\u1EAAN CH\u1EA4M \u2014 M\xC3 \u0110\u1EC0 ${headerInfo.exam_code}`, { align: "center", bold: true, sz: 26 });
-    for (const s of EXAM_SLOTS) {
+    for (const s of getSlotDefs(grade)) {
       const q = questionsBySlot[s.code];
       if (!q) continue;
       const sol = q.solution || "Xem l\u1EDDi gi\u1EA3i chi ti\u1EBFt.";
-      bodyXml += makeRichParagraphXml(`[${q.source_name}] ${sol}`, { prefix: `C\xE2u ${s.code}: ` });
+      bodyXml += makeRichParagraphXml(`[${q.source_name}] ${sol}`, {
+        prefix: grade === 9 ? `C\xE2u ${s.code}: ` : `${(s.prefix || "").trim() || s.code} `
+      });
     }
   }
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -10005,18 +10193,22 @@ var worker_default = {
           return jsonResponse({ ok: true, user: { id: target.id, email: target.email, name: target.name, role: target.role } });
         }
         if (path === "/api/categories" && method === "GET") {
-          return jsonResponse({ categories: getCategoriesWithCounts(state) });
+          const gParam = url.searchParams.get("grade");
+          const bank = await getBank(env, state, gParam, request.url);
+          return jsonResponse({ categories: getCategoriesForGrade(bank.exams, gParam) });
         }
         if (path === "/api/status" && method === "GET") {
+          const grade = normalizeGrade(url.searchParams.get("grade"));
+          const bank = await getBank(env, state, grade, request.url);
           const slotCounts = {};
-          for (const s of EXAM_SLOTS) slotCounts[s.code] = 0;
+          for (const s of getBankSlotDefs(grade)) slotCounts[s.code] = 0;
           const examQCounts = {};
-          for (const q of state.questions) {
+          for (const q of bank.questions) {
             slotCounts[q.slot] = (slotCounts[q.slot] || 0) + 1;
             if (q.exam_id) examQCounts[q.exam_id] = (examQCounts[q.exam_id] || 0) + 1;
           }
           const categoryFilter = url.searchParams.get("category");
-          let examList = [...state.exams];
+          let examList = [...bank.exams];
           if (categoryFilter && categoryFilter !== "all") {
             examList = examList.filter((e) => (e.category || "vao_10") === categoryFilter);
           }
@@ -10031,13 +10223,25 @@ var worker_default = {
             question_count: examQCounts[e.id] || 0,
             exam_id: e.id
           }));
+          const gradeIndex = await getGradeIndex(env, request.url);
+          const gradeStats = {};
+          for (const gi of GRADES) {
+            if (gi.grade === 9) {
+              gradeStats[9] = { questions: state.questions.length, exams: state.exams.length };
+            } else {
+              gradeStats[gi.grade] = gradeIndex[gi.grade] || { questions: 0, exams: 0 };
+            }
+          }
           return jsonResponse({
-            slots: EXAM_SLOTS,
-            categories: getCategoriesWithCounts(state),
+            grade,
+            grades: GRADES.map((gi) => ({ ...gi, ...gradeStats[gi.grade] || {} })),
+            structure: getStructure(grade),
+            slots: getBankSlotDefs(grade),
+            categories: getCategoriesForGrade(bank.exams, grade),
             slot_counts: slotCounts,
-            total_questions: state.questions.length,
+            total_questions: bank.questions.length,
             total_pdf_files: pdfFiles.length,
-            total_ingested_exams: state.exams.length,
+            total_ingested_exams: bank.exams.length,
             saved_exams_count: (state.saved_exams || []).length,
             pdf_files: pdfFiles
           });
@@ -10046,7 +10250,8 @@ var worker_default = {
           const slot = url.searchParams.get("slot");
           const category = url.searchParams.get("category");
           const search = (url.searchParams.get("search") || "").trim().toLowerCase();
-          let list = [...state.questions].sort((a, b) => b.id - a.id);
+          const bank = await getBank(env, state, url.searchParams.get("grade"), request.url);
+          let list = [...bank.questions].sort((a, b) => b.id - a.id);
           if (slot && slot !== "ALL") list = list.filter((q) => q.slot === slot);
           if (category && category !== "all") {
             list = list.filter((q) => (q.category || "vao_10") === category);
@@ -10063,7 +10268,13 @@ var worker_default = {
             return jsonResponse({ detail: "C\u1EA7n quy\u1EC1n Qu\u1EA3n tr\u1ECB vi\xEAn (Admin) \u0111\u1EC3 th\xEAm c\xE2u h\u1ECFi v\xE0o ng\xE2n h\xE0ng chung" }, 403);
           }
           const body = await request.json();
-          const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 0);
+          if (body.grade && normalizeGrade(body.grade) !== 9) {
+            return jsonResponse(
+              { detail: "Ng\xE2n h\xE0ng To\xE1n 6-7-8 l\xE0 d\u1EEF li\u1EC7u ch\u1EC9 \u0111\u1ECDc tr\xEAn b\u1EA3n online. H\xE3y th\xEAm c\xE2u h\u1ECFi \u1EDF b\u1EA3n qu\u1EA3n tr\u1ECB g\u1ED1c r\u1ED3i \u0111\u1ED3ng b\u1ED9." },
+              409
+            );
+          }
+          const maxId = state.questions.reduce((m, q) => Math.max(m, q.id || 0), 9e5);
           const created = {
             id: maxId + 1,
             exam_id: null,
@@ -10072,7 +10283,8 @@ var worker_default = {
             content: body.content || "",
             figure_path: null,
             solution: body.solution || "",
-            source_name: body.source_name || "T\u1EF1 so\u1EA1n"
+            source_name: body.source_name || "T\u1EF1 so\u1EA1n",
+            category: "vao_10"
           };
           state.questions.push(created);
           await persistState(env, state);
@@ -10086,7 +10298,12 @@ var worker_default = {
           if (method === "PUT") {
             const body = await request.json();
             const idx = state.questions.findIndex((q) => q.id === qid);
-            if (idx === -1) return jsonResponse({ detail: "Kh\xF4ng t\xECm th\u1EA5y c\xE2u h\u1ECFi" }, 404);
+            if (idx === -1) {
+              return jsonResponse(
+                { detail: "Kh\xF4ng t\xECm th\u1EA5y c\xE2u h\u1ECFi (ng\xE2n h\xE0ng To\xE1n 6-7-8 l\xE0 d\u1EEF li\u1EC7u ch\u1EC9 \u0111\u1ECDc tr\xEAn b\u1EA3n online)" },
+                404
+              );
+            }
             state.questions[idx] = {
               ...state.questions[idx],
               slot: body.slot || state.questions[idx].slot,
@@ -10117,54 +10334,24 @@ var worker_default = {
         if (path === "/api/mix" && method === "POST") {
           let excludeIds = [];
           let category = "vao_10";
+          let gradeParam = null;
           try {
             const body = await request.json();
             excludeIds = body.exclude_ids || [];
             if (body.category) category = body.category;
+            gradeParam = body.grade;
           } catch (_) {
           }
-          const excludeSet = new Set(excludeIds.map(Number));
-          const bySlot = {};
-          for (const q of state.questions) {
-            if (!bySlot[q.slot]) bySlot[q.slot] = [];
-            bySlot[q.slot].push(q);
-          }
-          const selected = {};
-          const usedExamCounts = {};
-          for (const s of EXAM_SLOTS) {
-            const code = s.code;
-            const candidates = bySlot[code] || [];
-            if (!candidates.length) {
-              selected[code] = null;
-              continue;
-            }
-            let matching = candidates;
-            if (category && category !== "all") {
-              const inCat = candidates.filter((c) => (c.category || "vao_10") === category);
-              if (inCat.length > 0) matching = inCat;
-            }
-            const nonExcluded = matching.filter((c) => !excludeSet.has(c.id));
-            const pool = [...nonExcluded.length ? nonExcluded : matching];
-            const iii1Topic = code === "III.2" && selected["III.1"] ? String(selected["III.1"].sub_topic || "").trim().toLowerCase() : null;
-            pool.sort((a, b) => {
-              const penA = iii1Topic && String(a.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
-              const penB = iii1Topic && String(b.sub_topic || "").trim().toLowerCase() === iii1Topic ? 10 : 0;
-              if (penA !== penB) return penA - penB;
-              const useA = usedExamCounts[a.exam_id || 0] || 0;
-              const useB = usedExamCounts[b.exam_id || 0] || 0;
-              if (useA !== useB) return useA - useB;
-              return Math.random() - 0.5;
-            });
-            const chosen = pool[0];
-            selected[code] = chosen;
-            const ek = chosen.exam_id || 0;
-            usedExamCounts[ek] = (usedExamCounts[ek] || 0) + 1;
-          }
-          return jsonResponse({ ok: true, exam: selected });
+          const grade = normalizeGrade(gradeParam);
+          if (grade !== 9 && category === "vao_10") category = "all";
+          const bank = await getBank(env, state, grade, request.url);
+          const selected = mixExamFromBank(bank.questions, grade, category, excludeIds);
+          return jsonResponse({ ok: true, exam: selected, grade });
         }
         if (path === "/api/swap" && method === "POST") {
           const body = await request.json();
-          let candidates = state.questions.filter((q) => q.slot === body.slot);
+          const bank = await getBank(env, state, body.grade, request.url);
+          let candidates = bank.questions.filter((q) => q.slot === body.slot);
           if (body.category && body.category !== "all") {
             const inCat = candidates.filter((q) => (q.category || "vao_10") === body.category);
             if (inCat.length > 0) candidates = inCat;
@@ -10232,6 +10419,8 @@ var worker_default = {
         }
         if (path === "/api/export-docx" && method === "POST") {
           const body = await request.json();
+          const grade = normalizeGrade(body.grade);
+          const exportBank = await getBank(env, state, grade, request.url);
           const slotIds = body.slot_question_ids || {};
           const customQuestions = body.custom_questions || {};
           const questionsBySlot = {};
@@ -10239,7 +10428,7 @@ var worker_default = {
             if (customQuestions[slotCode]) {
               questionsBySlot[slotCode] = customQuestions[slotCode];
             } else if (qId) {
-              questionsBySlot[slotCode] = state.questions.find((q) => q.id === Number(qId)) || null;
+              questionsBySlot[slotCode] = exportBank.questions.find((q) => q.id === Number(qId)) || null;
             } else {
               questionsBySlot[slotCode] = null;
             }
@@ -10257,13 +10446,14 @@ var worker_default = {
             headerInfo,
             body.include_solutions !== false,
             env,
-            request.url
+            request.url,
+            grade
           );
           return new Response(docxBytes, {
             status: 200,
             headers: {
               "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-              "Content-Disposition": `attachment; filename="De_Toan_10_Ma_${headerInfo.exam_code}.docx"`
+              "Content-Disposition": `attachment; filename="De_Toan_${grade === 9 ? 10 : grade}_Ma_${headerInfo.exam_code}.docx"`
             }
           });
         }

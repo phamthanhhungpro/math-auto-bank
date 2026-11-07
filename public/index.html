@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MathBank 10 — Nền tảng Khảo thí & Soạn đề Toán 10 Chuẩn Form Sở</title>
+  <title>MathBank — Nền tảng Khảo thí & Soạn đề Toán 10 Chuẩn Form Sở</title>
   
   <!-- Production Brand Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -1172,6 +1172,254 @@
       color: var(--text-muted);
     }
 
+
+
+    /* ========================================================
+       COMPACT HOME (QUICK START)
+       ======================================================== */
+    .home-hero.compact {
+      padding: 56px 24px 72px 24px;
+      min-height: calc(100vh - 64px - 64px);
+      display: flex;
+      align-items: center;
+    }
+    .home-hero.compact .home-hero-inner { width: 100%; }
+    .home-hero.compact .home-hero-grid { margin-bottom: 0; align-items: center; }
+    .home-hero.compact .home-hero-title { font-size: 48px; margin-bottom: 14px; }
+    .home-hero.compact .home-hero-sub { font-size: 17px; margin-bottom: 26px; }
+    .home-steps {
+      list-style: none;
+      display: flex;
+      gap: 12px;
+      padding: 0;
+      margin: 0;
+      flex-wrap: wrap;
+    }
+    .home-steps li {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: #ffffff;
+      border: 1px solid #fde7c8;
+      border-radius: 999px;
+      padding: 7px 16px 7px 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--navy-800);
+      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.06);
+    }
+    .home-steps li b {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      color: #fff;
+      font-size: 12px;
+    }
+    .quick-start-card {
+      background: #ffffff;
+      border: 1px solid #fde7c8;
+      border-radius: 22px;
+      padding: 26px;
+      box-shadow: 0 18px 50px rgba(234, 88, 12, 0.14), 0 2px 6px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 520px;
+      width: 100%;
+      justify-self: end;
+    }
+    .qs-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 9px;
+    }
+    .qs-grade-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .qs-grade {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--navy-800);
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px 0;
+      cursor: pointer;
+      transition: all 0.16s;
+    }
+    .qs-grade:hover { border-color: #f59e0b; background: #fffbeb; transform: translateY(-1px); }
+    .qs-grade.active {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(135deg, #071633 0%, #1e3a8a 100%);
+      box-shadow: 0 6px 16px rgba(7, 22, 51, 0.28);
+    }
+    .qs-cat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+    }
+    .qs-cat {
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 11px 6px;
+      cursor: pointer;
+      transition: all 0.16s;
+    }
+    .qs-cat:hover { border-color: #f59e0b; color: var(--navy-800); }
+    .qs-cat.active {
+      color: #9a3412;
+      border-color: #ea580c;
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+      font-weight: 700;
+    }
+    .qs-go { width: 100%; justify-content: center; height: 52px; font-size: 15.5px; }
+    .home-footer-inner { justify-content: center; gap: 14px; }
+    @media (max-width: 1040px) {
+      .quick-start-card { justify-self: stretch; max-width: none; }
+      .home-hero.compact { min-height: 0; padding-top: 36px; }
+      .home-hero.compact .home-hero-title { font-size: 36px; }
+    }
+
+    /* ========================================================
+       GRADE (KHỐI LỚP) SWITCHER
+       ======================================================== */
+    .grade-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+    }
+    .grade-switch .grade-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 12.5px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.16s, color 0.16s, box-shadow 0.16s, transform 0.16s;
+    }
+    .grade-switch .grade-btn:hover {
+      background: #ffffff;
+      color: var(--navy-800);
+    }
+    .grade-switch .grade-btn.active {
+      background: linear-gradient(135deg, #071633 0%, #1e3a8a 100%);
+      color: #ffffff;
+      box-shadow: 0 3px 10px rgba(7, 22, 51, 0.25);
+    }
+    .grade-switch.compact .grade-btn {
+      padding: 5px 11px;
+      min-width: 30px;
+    }
+    .grade-switch-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0 6px 0 9px;
+    }
+    .grade-card .grade-switch {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-radius: 12px;
+      width: 100%;
+    }
+    .grade-card .grade-switch .grade-btn {
+      border-radius: 9px;
+      padding: 8px 0;
+    }
+    .grade-card-sub {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text-muted);
+    }
+    .hero-grade-picker {
+      margin-top: 22px;
+      margin-bottom: 22px;
+    }
+    .stat-chip-amber { white-space: nowrap; }
+    @media (max-width: 1560px) {
+      .topbar .stat-chip-amber { display: none; }
+    }
+    .hero-grade-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .hero-grade-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      max-width: 560px;
+    }
+    .hero-grade-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      text-align: left;
+      font-family: inherit;
+      background: #ffffff;
+      border: 1.5px solid #fde7c8;
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.07);
+      transition: transform 0.16s, border-color 0.16s, box-shadow 0.16s;
+    }
+    .hero-grade-chip b {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+      color: var(--navy-900);
+    }
+    .hero-grade-chip small {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.25;
+    }
+    .hero-grade-chip:hover {
+      transform: translateY(-2px);
+      border-color: #f59e0b;
+      box-shadow: 0 8px 20px rgba(234, 88, 12, 0.16);
+    }
+    .hero-grade-chip.active {
+      border-color: #ea580c;
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    }
+    @media (max-width: 720px) {
+      .hero-grade-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grade-switch-label { display: none; }
+    }
+
     /* ========================================================
        STUDIO WORKSPACE LAYOUT (CLEAN WITHOUT BLUE BANNER)
        ======================================================== */
@@ -2050,7 +2298,7 @@
   <!-- Empire EdTech Sticky Header -->
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="brand" onclick="switchView('home')" title="MathBank 10 Pro - Nền tảng Khảo thí & Soạn đề">
+      <div class="brand" onclick="switchView('home')" title="MathBank Pro - Nền tảng Khảo thí & Soạn đề">
         <span class="brand-icon">
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -2082,10 +2330,9 @@
         </span>
         <div class="brand-text-wrap">
           <div class="brand-title">
-            <span class="brand-name">MathBank<span class="brand-num">10</span></span>
+            <span class="brand-name">MathBank<span class="brand-num">THCS</span></span>
             <span class="brand-pro-badge">PRO</span>
           </div>
-          <span class="brand-sub">Nền tảng Khảo thí & Soạn đề Toán thông minh</span>
         </div>
       </div>
 
@@ -2096,27 +2343,30 @@
         </button>
         <button class="nav-tab" data-view="studio" onclick="switchView('studio')">
           <i data-lucide="sparkles" class="lucide"></i>
-          <span>Soạn & Trộn Đề</span>
+          <span>Soạn đề</span>
         </button>
         <button class="nav-tab" data-view="bank" onclick="switchView('bank')">
           <i data-lucide="book-open" class="lucide"></i>
-          <span>Thư Viện Câu Hỏi</span>
+          <span>Thư viện</span>
         </button>
         <button class="nav-tab" data-view="saved" onclick="switchView('saved')">
           <i data-lucide="folder-heart" class="lucide"></i>
-          <span>Bộ Đề Đã Lưu</span>
+          <span>Đề đã lưu</span>
           <span class="nav-count-pill" id="savedCountBadge">0</span>
         </button>
         <button class="nav-tab" id="navAdminTab" data-view="admin" onclick="switchView('admin')" style="display:none;">
           <i data-lucide="shield-check" class="lucide"></i>
-          <span>Quản Trị Hệ Thống</span>
+          <span>Quản trị</span>
         </button>
       </nav>
 
       <div class="topbar-right">
-        <div class="stat-chip-amber" id="topStatBadge">
-          <i data-lucide="sparkles" class="lucide" style="width:14px; height:14px; color:#f99d0d;"></i>
-          <span>Chuẩn Form Tuyển Sinh 10 Hà Nội</span>
+        <div class="grade-switch compact" title="Chọn khối lớp" role="tablist" aria-label="Chọn khối lớp">
+          <span class="grade-switch-label">Lớp</span>
+          <button class="grade-btn" data-grade-btn="6" onclick="setGrade(6)">6</button>
+          <button class="grade-btn" data-grade-btn="7" onclick="setGrade(7)">7</button>
+          <button class="grade-btn" data-grade-btn="8" onclick="setGrade(8)">8</button>
+          <button class="grade-btn" data-grade-btn="9" onclick="setGrade(9)">9</button>
         </div>
 
         <!-- Logged Out State -->
@@ -2159,475 +2409,50 @@
 
   <!-- VIEW 0: EMPIRE HOMEPAGE (INSPIRED BY empire.edu.vn) -->
   <section id="view-home" class="view-section active">
-    <!-- Hero Section with Warm Peach/Amber Gradient -->
-    <div class="home-hero">
-      <!-- Decorative Elements -->
-      <span class="deco-star" style="top:25px; right:15%; font-size:24px;">✦</span>
-      <span class="deco-star" style="top:90px; right:8%; font-size:32px; color:#eb5500;">✈</span>
-      <span class="deco-star" style="bottom:40px; left:8%; font-size:20px;">✦</span>
-
+    <div class="home-hero compact">
       <div class="home-hero-inner">
-        <!-- 2-Column Hero Grid -->
         <div class="home-hero-grid">
-          <!-- Left Column: Friendly Selling Copy & CTAs -->
           <div class="home-hero-left">
-            <div class="home-hero-badge">
-              <i data-lucide="sparkles" class="lucide" style="width:14px; height:14px; color:#eb5500;"></i>
-              <span>Khai giảng khoá mới — Luyện thi Tuyển sinh 10 (Năm học 2026 - 2027)</span>
-            </div>
-
             <h1 class="home-hero-title">
-              Soạn Đề Thi Toán 10<br>
-              <span class="highlight">Chuẩn Form Sở GD&ĐT</span><br>
-              Chỉ Trong 30 Giây
+              Soạn đề Toán THCS<br>
+              <span class="highlight">trong 30 giây</span>
             </h1>
-
-            <p class="home-hero-sub">
-              Nền tảng đồng hành toàn diện cùng Thầy Cô & Học sinh. Tự động biên soạn đề thi bám sát form đề chính thức của Sở GD&ĐT Hà Nội, phân hóa từ 7+ đến 9+, có sẵn lời giải chi tiết và tải file Word chuẩn in ấn ngay.
-            </p>
-
-            <div class="home-hero-cta">
-              <button class="btn btn-brand btn-lg" onclick="switchView('studio')">
-                <i data-lucide="sparkles" class="lucide"></i>
-                <span>Soạn & Trộn đề ngay</span>
-                <i data-lucide="arrow-right" class="lucide"></i>
-              </button>
-              <button class="btn btn-lg" onclick="switchView('bank')">
-                <i data-lucide="book-open" class="lucide"></i>
-                <span>Khám phá Thư viện Đề</span>
-              </button>
-            </div>
-
-            <!-- Trust Points Under CTA -->
-            <div class="home-trust-strip">
-              <div class="trust-item">
-                <i data-lucide="check-circle-2" class="lucide"></i>
-                <span>Tiết kiệm 90% thời gian</span>
-              </div>
-              <div class="trust-item">
-                <i data-lucide="check-circle-2" class="lucide"></i>
-                <span>File Word chuẩn in ấn</span>
-              </div>
-              <div class="trust-item">
-                <i data-lucide="check-circle-2" class="lucide"></i>
-                <span>Barem điểm chi tiết</span>
-              </div>
-            </div>
+            <p class="home-hero-sub">Chọn lớp, chọn loại đề, tải file Word.</p>
+            <ol class="home-steps">
+              <li><b>1</b><span>Chọn lớp</span></li>
+              <li><b>2</b><span>Chọn loại đề</span></li>
+              <li><b>3</b><span>Trộn &amp; tải Word</span></li>
+            </ol>
           </div>
 
-          <!-- Right Column: Interactive Product Showcase Card (Filling the Hero Right Space) -->
-          <div class="home-hero-visual">
-            <div class="hero-mockup-wrapper">
-              <!-- Floating Badge 1 (Top Left) -->
-              <div class="hero-float-chip chip-tl">
-                <span class="pulse-green-dot"></span>
-                <span>Tạo đề tức thì • 0.4s</span>
-              </div>
-
-              <!-- Floating Badge 2 (Top Right) -->
-              <div class="hero-float-chip chip-tr">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="#1d4ed8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8" fill="#93c5fd"/><line x1="16" y1="13" x2="8" y2="13" stroke="#fff" stroke-width="2"/><line x1="16" y1="17" x2="8" y2="17" stroke="#fff" stroke-width="2"/><polyline points="10 9 9 9 8 9" stroke="#fff" stroke-width="2"/></svg>
-                <span>Xuất Word (.docx) chuẩn in</span>
-              </div>
-
-              <!-- Floating Badge 3 (Bottom Right) -->
-              <div class="hero-float-chip chip-br">
-                <i data-lucide="check-circle" class="lucide" style="width:14px; height:14px; color:#10b981;"></i>
-                <span>Barem & Lời giải chi tiết 100%</span>
-              </div>
-
-              <!-- The Realistic Exam Paper Card -->
-              <div class="hero-exam-card" onclick="switchView('studio')">
-                <div class="hero-exam-stamp">CHUẨN FORM SỞ GD&ĐT</div>
-
-                <div class="hero-exam-head">
-                  <div class="hero-exam-head-left">
-                    <div>SỞ GD&ĐT HÀ NỘI</div>
-                    <div class="line-sub">TRƯỜNG THPT CHU VĂN AN</div>
-                  </div>
-                  <div class="hero-exam-head-right">
-                    <div class="line-title">ĐỀ THI THỬ TUYỂN SINH VÀO LỚP 10 THPT</div>
-                    <div class="line-meta">Năm học 2026 - 2027 • Môn: TOÁN</div>
-                    <div class="line-meta">Thời gian: 120 phút <i>(Mã đề 102)</i></div>
-                  </div>
-                </div>
-
-                <div class="hero-exam-body">
-                  <div class="hero-exam-q">
-                    <div class="hero-exam-q-title">Bài I (1,5 điểm): Căn thức & Rút gọn</div>
-                    <div class="hero-exam-q-formula">
-                      Cho biểu thức \(A = \frac{\sqrt{x}+4}{\sqrt{x}-1}\) và \(B = \frac{3\sqrt{x}+1}{x-1} - \frac{2}{\sqrt{x}+1}\) với \(x \ge 0, x \ne 1\).
-                    </div>
-                    <div style="font-size:11px; color:#64748b; margin-top:2px;">
-                      1) Tính giá trị của A khi x = 9. &nbsp; 2) Rút gọn biểu thức B.
-                    </div>
-                  </div>
-
-                  <div class="hero-exam-q">
-                    <div class="hero-exam-q-title">Bài III (2,5 điểm): Hệ phương trình & Vi-ét</div>
-                    <div class="hero-exam-q-formula">
-                      Cho phương trình: \(x^2 - 2(m-1)x + 2m - 5 = 0\). Tìm \(m\) để phương trình có 2 nghiệm phân biệt thỏa mãn \(x_1^2 + x_2^2 = 10\).
-                    </div>
-                  </div>
-
-                  <div class="hero-exam-q">
-                    <div class="hero-exam-q-title">Bài IV (3,0 điểm): Hình học đường tròn</div>
-                    <div style="font-size:11.5px; color:#334155;">
-                      Cho đường tròn \((O; R)\) và điểm \(A\) nằm ngoài đường tròn. Từ \(A\) kẻ hai tiếp tuyến \(AB, AC\)... Chứng minh 4 điểm \(A, B, O, C\) cùng thuộc một đường tròn.
-                    </div>
-                  </div>
-                </div>
-
-                <div class="hero-exam-action-bar">
-                  <span style="display:flex; align-items:center; gap:6px;">
-                    <i data-lucide="sparkles" class="lucide" style="width:14px; height:14px;"></i>
-                    <span>Bấm để mở và trộn đề mẫu này trong Studio</span>
-                  </span>
-                  <i data-lucide="arrow-right" class="lucide" style="width:14px; height:14px;"></i>
-                </div>
+          <div class="quick-start-card">
+            <div class="qs-block">
+              <div class="qs-label">Khối lớp</div>
+              <div class="qs-grade-row">
+                <button class="qs-grade" data-grade-btn="6" onclick="setGrade(6, { mix: false })">Lớp 6</button>
+                <button class="qs-grade" data-grade-btn="7" onclick="setGrade(7, { mix: false })">Lớp 7</button>
+                <button class="qs-grade" data-grade-btn="8" onclick="setGrade(8, { mix: false })">Lớp 8</button>
+                <button class="qs-grade" data-grade-btn="9" onclick="setGrade(9, { mix: false })">Lớp 9</button>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 2 Highlight Program Cards (HSA & V-ACT style) -->
-        <div class="home-program-grid">
-          <div class="program-card" onclick="switchView('studio')">
-            <div>
-              <div class="program-card-head">
-                <div class="program-icon-circle navy">
-                  <i data-lucide="target" class="lucide" style="width:22px; height:22px;"></i>
-                </div>
-                <div>
-                  <div class="program-card-title">Bộ Đề Thi Thử Tuyển Sinh Vào 10</div>
-                  <div class="program-card-org">Sở GD&ĐT Hà Nội • Chuẩn Ma Trận 5 Bài Trọng Điểm</div>
-                </div>
-              </div>
-              <p class="program-card-desc" style="margin-top:14px;">
-                Đề thi phân hóa khoa học từ nhận biết đến vận dụng cao. Giúp học sinh rèn đúng trọng tâm, nắm chắc điểm 8+, tự tin chinh phục các câu phân hóa 9 - 10 điểm để đỗ vào trường THPT công lập mong muốn.
-              </p>
+            <div class="qs-block">
+              <div class="qs-label">Loại đề</div>
+              <div class="qs-cat-grid" id="qsCategoryChips"></div>
             </div>
-            <div class="program-card-link">
-              <span>Trải nghiệm tạo đề ngay</span>
+            <button class="btn btn-brand btn-lg qs-go" onclick="startQuickExam()">
+              <i data-lucide="sparkles" class="lucide"></i>
+              <span>Soạn đề ngay</span>
               <i data-lucide="arrow-right" class="lucide"></i>
-            </div>
-          </div>
-
-          <div class="program-card teal" onclick="switchView('studio')">
-            <div>
-              <div class="program-card-head">
-                <div class="program-icon-circle teal">
-                  <i data-lucide="file-down" class="lucide" style="width:22px; height:22px;"></i>
-                </div>
-                <div>
-                  <div class="program-card-title">Tải File Word In Ấn 1-Click</div>
-                  <div class="program-card-org">Microsoft Word Native • Tương thích mọi phiên bản</div>
-                </div>
-              </div>
-              <p class="program-card-desc" style="margin-top:14px;">
-                Tải ngay file <code>.docx</code> chuẩn mực được định dạng sẵn lề trang, font chữ và công thức Toán học sắc nét. Thầy cô chỉ cần tải về là có thể in ấn ngay để phát cho học sinh làm bài mà không mất công căn chỉnh.
-              </p>
-            </div>
-            <div class="program-card-link" style="color:var(--teal-700);">
-              <span>Xem đề mẫu & Tải Word</span>
-              <i data-lucide="arrow-right" class="lucide"></i>
-            </div>
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Key Metrics Strip: Focus on Customer Benefits Instead of Raw DB Internals -->
-    <div class="home-metrics-section">
-      <div class="metrics-grid">
-        <div class="metric-item">
-          <div class="metric-icon-box amber"><i data-lucide="zap" class="lucide" style="width:22px; height:22px;"></i></div>
-          <div>
-            <div class="metric-value">Tốc độ 0.4s</div>
-            <div class="metric-label">Tạo đề hoàn chỉnh tức thì</div>
-          </div>
-        </div>
-        <div class="metric-item">
-          <div class="metric-icon-box navy"><i data-lucide="shield-check" class="lucide" style="width:22px; height:22px;"></i></div>
-          <div>
-            <div class="metric-value">100% Chuẩn Form</div>
-            <div class="metric-label">Cấu trúc Sở GD&ĐT Hà Nội</div>
-          </div>
-        </div>
-        <div class="metric-item">
-          <div class="metric-icon-box teal"><i data-lucide="file-check" class="lucide" style="width:22px; height:22px;"></i></div>
-          <div>
-            <div class="metric-value">Lời Giải Chi Tiết</div>
-            <div class="metric-label">Barem điểm từng bước rõ ràng</div>
-          </div>
-        </div>
-        <div class="metric-item">
-          <div class="metric-icon-box green"><i data-lucide="printer" class="lucide" style="width:22px; height:22px;"></i></div>
-          <div>
-            <div class="metric-value">File Word Sắc Nét</div>
-            <div class="metric-label">Sẵn sàng in ấn phát đề ngay</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 5 Exam Stages & Year-Round Coverage Section -->
-    <div class="home-content-section" style="background:#f8fafc; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:50px 24px;">
-      <div class="section-header-center">
-        <div class="section-eyebrow">Hệ thống khảo thí 4 mùa học tập</div>
-        <h2 class="section-title-large">Đồng Hành Toàn Diện Suốt Năm Học Toán 9 & Thi Vào 10</h2>
-        <p class="section-subtext">Không chỉ phục vụ kỳ thi tuyển sinh lớp 10, MathBank hỗ trợ đầy đủ các đợt kiểm tra định kỳ xuyên suốt năm học cho giáo viên và học sinh.</p>
-      </div>
-
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; max-width:1200px; margin:0 auto;">
-        <!-- Card 1: Tuyển sinh 10 -->
-        <div class="program-card" onclick="onExamCategoryChange('vao_10', true); switchView('studio');" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <div class="program-card-head">
-              <div class="program-icon-circle navy"><i data-lucide="award" class="lucide" style="width:22px; height:22px;"></i></div>
-              <div>
-                <div class="program-card-title">Thi Tuyển Sinh Vào 10</div>
-                <div class="program-card-org">79 Đề thi chính thức & Đề thi thử (120 phút)</div>
-              </div>
-            </div>
-            <p class="program-card-desc" style="margin-top:12px;">Cấu trúc 5 bài chuẩn 10,0 điểm của Sở GD&ĐT Hà Nội và các Sở GD toàn quốc. Phân hóa từ 7+ đến 9,5+.</p>
-          </div>
-          <div class="program-card-link"><span>Soạn đề Vào 10</span><i data-lucide="arrow-right" class="lucide"></i></div>
-        </div>
-
-        <!-- Card 2: Giữa HK1 -->
-        <div class="program-card" onclick="onExamCategoryChange('giua_hk1', true); switchView('studio');" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; border-top:3px solid #f59e0b;">
-          <div>
-            <div class="program-card-head">
-              <div class="program-icon-circle amber"><i data-lucide="clipboard-check" class="lucide" style="width:22px; height:22px;"></i></div>
-              <div>
-                <div class="program-card-title">Khảo Sát Giữa Học Kì 1</div>
-                <div class="program-card-org">11 Đề trường trọng điểm (90 phút)</div>
-              </div>
-            </div>
-            <p class="program-card-desc" style="margin-top:12px;">Trọng tâm: Căn thức bậc hai, rút gọn biểu thức và hệ thức lượng trong tam giác vuông (Cầu Giấy, Lômônôxốp...).</p>
-          </div>
-          <div class="program-card-link" style="color:#b45309;"><span>Soạn đề Giữa HK1</span><i data-lucide="arrow-right" class="lucide"></i></div>
-        </div>
-
-        <!-- Card 3: Cuối HK1 -->
-        <div class="program-card teal" onclick="onExamCategoryChange('cuoi_hk1', true); switchView('studio');" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <div class="program-card-head">
-              <div class="program-icon-circle teal"><i data-lucide="book-marked" class="lucide" style="width:22px; height:22px;"></i></div>
-              <div>
-                <div class="program-card-title">Kiểm Tra Cuối Học Kì 1</div>
-                <div class="program-card-org">7 Đề đánh giá học kì (90 phút)</div>
-              </div>
-            </div>
-            <p class="program-card-desc" style="margin-top:12px;">Tổng kết học kì 1: Căn bậc hai, Hàm số bậc nhất y = ax + b và Đường tròn (tiếp tuyến, cát tuyến).</p>
-          </div>
-          <div class="program-card-link" style="color:var(--teal-700);"><span>Soạn đề Cuối HK1</span><i data-lucide="arrow-right" class="lucide"></i></div>
-        </div>
-
-        <!-- Card 4: Giữa HK2 -->
-        <div class="program-card" onclick="onExamCategoryChange('giua_hk2', true); switchView('studio');" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; border-top:3px solid #f59e0b;">
-          <div>
-            <div class="program-card-head">
-              <div class="program-icon-circle amber"><i data-lucide="calendar-check" class="lucide" style="width:22px; height:22px;"></i></div>
-              <div>
-                <div class="program-card-title">Khảo Sát Giữa Học Kì 2</div>
-                <div class="program-card-org">10 Đề khảo sát chất lượng (90 phút)</div>
-              </div>
-            </div>
-            <p class="program-card-desc" style="margin-top:12px;">Trọng tâm: Hệ hai phương trình bậc nhất, Giải bài toán bằng cách lập hệ PT và Góc với đường tròn.</p>
-          </div>
-          <div class="program-card-link" style="color:#b45309;"><span>Soạn đề Giữa HK2</span><i data-lucide="arrow-right" class="lucide"></i></div>
-        </div>
-
-        <!-- Card 5: Cuối HK2 -->
-        <div class="program-card teal" onclick="onExamCategoryChange('cuoi_hk2', true); switchView('studio');" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <div class="program-card-head">
-              <div class="program-icon-circle teal"><i data-lucide="graduation-cap" class="lucide" style="width:22px; height:22px;"></i></div>
-              <div>
-                <div class="program-card-title">Kiểm Tra Cuối Học Kì 2</div>
-                <div class="program-card-org">10 Đề thi học kì 2 (90 phút)</div>
-              </div>
-            </div>
-            <p class="program-card-desc" style="margin-top:12px;">Tổng kết cả năm: Phương trình bậc hai, Định lý Vi-ét, Tứ giác nội tiếp và Hình trụ - Nón - Cầu thực tế.</p>
-          </div>
-          <div class="program-card-link" style="color:var(--teal-700);"><span>Soạn đề Cuối HK2</span><i data-lucide="arrow-right" class="lucide"></i></div>
-        </div>
-
-        <!-- Card 6: Chuyên đề -->
-        <div class="program-card" onclick="onExamCategoryChange('chuyen_de', true); switchView('studio');" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; border-top:3px solid #6366f1;">
-          <div>
-            <div class="program-card-head">
-              <div class="program-icon-circle" style="background:#e0e7ff; color:#4338ca;"><i data-lucide="sparkles" class="lucide" style="width:22px; height:22px;"></i></div>
-              <div>
-                <div class="program-card-title">Chuyên Đề Trọng Tâm</div>
-                <div class="program-card-org">23 Chuyên đề nâng cao & Đột phá</div>
-              </div>
-            </div>
-            <p class="program-card-desc" style="margin-top:12px;">Rèn luyện chuyên sâu: Bất đẳng thức Min/Max (Bài V), Hình học nâng cao, Toán thực tế và Căn thức phân hóa.</p>
-          </div>
-          <div class="program-card-link" style="color:#4338ca;"><span>Luyện tập Chuyên đề</span><i data-lucide="arrow-right" class="lucide"></i></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Curriculum Matrix Section -->
-    <div class="home-content-section">
-      <div class="section-header-center">
-        <div class="section-eyebrow">Ma trận chuẩn cấu trúc 10,0 điểm</div>
-        <h2 class="section-title-large">Khung Đề Thi Tuyển Sinh Vào 10 Môn Toán Hà Nội</h2>
-        <p class="section-subtext">Được thiết kế dựa trên cấu trúc đề thi chính thức mới nhất của Sở GD&ĐT Hà Nội, phân hóa rõ ràng từ nhận biết đến vận dụng cao.</p>
-      </div>
-
-      <div class="matrix-cards-grid">
-        <div class="matrix-box">
-          <div>
-            <div class="matrix-box-top">
-              <span class="matrix-num-pill">Bài I</span>
-              <span class="matrix-point-pill">1,5 điểm</span>
-            </div>
-            <div class="matrix-box-title">Thống kê & Xác suất</div>
-            <div class="matrix-box-desc" style="margin-top:6px;">
-              • I.1: Thống kê (bảng biểu, biểu đồ, trung bình, trung vị)<br>
-              • I.2: Xác suất của biến cố ngẫu nhiên
-            </div>
-          </div>
-          <div class="matrix-box-action">
-            <button class="btn btn-teal btn-xs" style="width:100%;" onclick="activeBankSlot='I.1'; switchView('bank');">Xem câu hỏi</button>
-          </div>
-        </div>
-
-        <div class="matrix-box">
-          <div>
-            <div class="matrix-box-top">
-              <span class="matrix-num-pill">Bài II</span>
-              <span class="matrix-point-pill">1,5 điểm</span>
-            </div>
-            <div class="matrix-box-title">Rút gọn biểu thức</div>
-            <div class="matrix-box-desc" style="margin-top:6px;">
-              • Tính giá trị biểu thức khi x biết trước<br>
-              • Rút gọn biểu thức chứa căn bậc hai<br>
-              • Tìm x để biểu thức thỏa mãn điều kiện
-            </div>
-          </div>
-          <div class="matrix-box-action">
-            <button class="btn btn-teal btn-xs" style="width:100%;" onclick="activeBankSlot='II'; switchView('bank');">Xem câu hỏi</button>
-          </div>
-        </div>
-
-        <div class="matrix-box">
-          <div>
-            <div class="matrix-box-top">
-              <span class="matrix-num-pill">Bài III</span>
-              <span class="matrix-point-pill">2,5 điểm</span>
-            </div>
-            <div class="matrix-box-title">PT, HPT & Vi-ét</div>
-            <div class="matrix-box-desc" style="margin-top:6px;">
-              • III.1: Giải bài toán lập PT / HPT (dạng 1)<br>
-              • III.2: Giải bài toán lập PT / HPT (dạng 2)<br>
-              • III.3: PT bậc hai và hệ thức Vi-ét
-            </div>
-          </div>
-          <div class="matrix-box-action">
-            <button class="btn btn-teal btn-xs" style="width:100%;" onclick="activeBankSlot='III.1'; switchView('bank');">Xem câu hỏi</button>
-          </div>
-        </div>
-
-        <div class="matrix-box">
-          <div>
-            <div class="matrix-box-top">
-              <span class="matrix-num-pill">Bài IV</span>
-              <span class="matrix-point-pill">4,0 điểm</span>
-            </div>
-            <div class="matrix-box-title">Hình học tổng hợp</div>
-            <div class="matrix-box-desc" style="margin-top:6px;">
-              • IV.1: Hình học không gian thực tế (hình trụ, nón, cầu)<br>
-              • IV.2: Hình học phẳng (tứ giác nội tiếp, tiếp tuyến, đường tròn)
-            </div>
-          </div>
-          <div class="matrix-box-action">
-            <button class="btn btn-teal btn-xs" style="width:100%;" onclick="activeBankSlot='IV.2'; switchView('bank');">Xem câu hỏi</button>
-          </div>
-        </div>
-
-        <div class="matrix-box">
-          <div>
-            <div class="matrix-box-top">
-              <span class="matrix-num-pill">Bài V</span>
-              <span class="matrix-point-pill">0,5 điểm</span>
-            </div>
-            <div class="matrix-box-title">Vận dụng cao</div>
-            <div class="matrix-box-desc" style="margin-top:6px;">
-              • Bất đẳng thức & cực trị đại số<br>
-              • Toán thực tế tối ưu hóa chi phí, diện tích<br>
-              • Phân loại học sinh giỏi
-            </div>
-          </div>
-          <div class="matrix-box-action">
-            <button class="btn btn-teal btn-xs" style="width:100%;" onclick="activeBankSlot='V'; switchView('bank');">Xem câu hỏi</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Features Section -->
-    <div class="home-content-section">
-      <div class="section-header-center">
-        <div class="section-eyebrow">Tại sao chọn MathBank 10?</div>
-        <h2 class="section-title-large">Công Cụ Đắc Lực Cho Thầy Cô & Học Sinh</h2>
-        <p class="section-subtext">Được thiết kế tối ưu cho trải nghiệm người dùng, giúp tiết kiệm 90% thời gian biên soạn và chuẩn bị đề kiểm tra.</p>
-      </div>
-
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon-circle"><i data-lucide="shuffle" class="lucide" style="width:22px; height:22px;"></i></div>
-          <h3 class="feature-title">Biên soạn đa dạng, không trùng lặp</h3>
-          <p class="feature-desc">Hệ thống tự động hoán vị và tuyển chọn câu hỏi theo đúng ma trận chuẩn, giúp Thầy Cô tạo nhiều mã đề thi thử phong phú cho học sinh luyện tập.</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon-circle"><i data-lucide="file-down" class="lucide" style="width:22px; height:22px;"></i></div>
-          <h3 class="feature-title">Xuất file Word chuẩn in ấn 100%</h3>
-          <p class="feature-desc">Không còn nỗi lo lệch dòng hay vỡ định dạng công thức. File <code>.docx</code> tải về sắc nét, chuẩn mực phông chữ và căn lề theo quy chuẩn của Bộ GD&ĐT.</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon-circle"><i data-lucide="edit-3" class="lucide" style="width:22px; height:22px;"></i></div>
-          <h3 class="feature-title">Tùy biến linh hoạt theo từng lớp học</h3>
-          <p class="feature-desc">Dễ dàng đổi câu hỏi theo mức độ từ cơ bản đến nâng cao, hoặc tự do biên tập và bổ sung ghi chú trực tiếp ngay trên trang đề trước khi in.</p>
-        </div>
-      </div>
-
-      <!-- Bottom Empire CTA Banner -->
-      <div class="home-bottom-cta">
-        <h3>Bắt đầu biên soạn đề thi Toán 10 ngay hôm nay</h3>
-        <p>Hệ thống hoàn toàn miễn phí, sẵn sàng đồng hành cùng thầy cô và các bạn học sinh bứt phá điểm số trong kỳ thi Tuyển sinh vào 10.</p>
-        <button class="btn btn-brand btn-lg" onclick="switchView('studio')">
-          <i data-lucide="sparkles" class="lucide"></i>
-          <span>Bắt đầu soạn & trộn đề ngay</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Home Footer -->
     <footer class="home-footer">
       <div class="home-footer-inner">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="brand-icon" style="width:26px; height:26px; border-radius:7px; background:transparent; box-shadow:none; padding:0;">
-            <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
-              <rect width="40" height="40" rx="10" fill="#071633" />
-              <path d="M9 27.5 L11 17 L15.5 22.5 L20 11.5 L24.5 22.5 L29 17 L31 27.5 Z" fill="#f59e0b" />
-              <rect x="9" y="27.5" width="22" height="3.5" rx="1.5" fill="#d97706" />
-              <circle cx="20" cy="10" r="1.8" fill="#fef08a" />
-            </svg>
-          </span>
-          <span style="font-family:'Plus Jakarta Sans', sans-serif; font-weight:700; color:var(--navy-800);">MathBank 10 Pro</span>
-          <span>— Nền tảng khảo thí & đề thi Toán 10 chuẩn cấu trúc</span>
-        </div>
-        <div>
-          <span>Bản quyền © 2026 MathBank Team. Phát triển vì sự tiến bộ của học sinh và thầy cô.</span>
-        </div>
+        <span style="font-family:'Plus Jakarta Sans', sans-serif; font-weight:700; color:var(--navy-800);">MathBank THCS</span>
+        <span>© 2026 MathBank Team</span>
       </div>
     </footer>
   </section>
@@ -2640,50 +2465,33 @@
         <aside class="studio-sidebar">
           <!-- Card 1: Action Center & Export -->
           <div class="inspector-card action-panel-card">
-            <div class="sidebar-group-title" style="margin-bottom:2px;">
-              <span><i data-lucide="sparkles" class="lucide" style="margin-right:6px; color:#f59e0b;"></i>Thao tác & Xuất bản</span>
-              <span class="role-badge" style="background:#fef3c7; color:#b45309; font-size:10.5px; font-weight:700;">Studio</span>
-            </div>
-
-            <!-- Primary Mix Button -->
-            <button class="btn btn-action-mix" id="btnMixExam" onclick="mixNewExam(this)" title="Trộn lại 9 câu hỏi ngẫu nhiên theo ma trận chuẩn">
+            <button class="btn btn-action-mix" id="btnMixExam" onclick="mixNewExam(this)" title="Trộn lại toàn bộ đề với câu hỏi ngẫu nhiên">
               <i data-lucide="shuffle" class="lucide"></i>
-              <span>Trộn đề ngẫu nhiên</span>
+              <span>Trộn đề mới</span>
             </button>
 
-            <!-- Export DOCX Button -->
-            <button class="btn btn-action-docx" id="btnExportDocx" onclick="exportDocx(this)" title="Xuất file Word (.docx) chuẩn công thức toán học OMML">
+            <button class="btn btn-action-docx" id="btnExportDocx" onclick="exportDocx(this)" title="Tải file Word (.docx) có công thức Equation">
               <i data-lucide="file-down" class="lucide"></i>
-              <span>Xuất Word (.docx)</span>
+              <span>Tải Word (.docx)</span>
             </button>
 
-            <!-- Save & Print Buttons -->
             <div class="action-btn-grid">
-              <button class="btn btn-action-sub" id="btnSaveExam" onclick="saveCurrentExam(this)" title="Lưu đề thi này vào kho bộ đề của bạn">
+              <button class="btn btn-action-sub" id="btnSaveExam" onclick="saveCurrentExam(this)" title="Lưu đề này để mở lại sau">
                 <i data-lucide="bookmark-plus" class="lucide" style="color:#d97706;"></i>
-                <span>Lưu bộ đề</span>
+                <span>Lưu đề</span>
               </button>
-              <button class="btn btn-action-sub" onclick="window.print()" title="Mở hộp thoại in hoặc lưu PDF chuẩn A4">
+              <button class="btn btn-action-sub" onclick="window.print()" title="In hoặc lưu PDF">
                 <i data-lucide="printer" class="lucide" style="color:#0284c7;"></i>
-                <span>In / Xuất PDF</span>
+                <span>In / PDF</span>
               </button>
-            </div>
-
-            <!-- View Modes (Toggle Solutions & Print Mode) -->
-            <div style="margin-top:4px; padding-top:10px; border-top:1px dashed var(--border);">
-              <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
-                <span>Chế độ xem & Soát bài</span>
-              </div>
-              <div class="action-btn-grid">
-                <button class="btn btn-toggle-tool" id="btnToggleSolutions" onclick="toggleSolutions()" title="Bật / tắt hiển thị hướng dẫn giải và đáp số chi tiết">
-                  <i data-lucide="eye" class="lucide"></i>
-                  <span>Xem đáp án</span>
-                </button>
-                <button class="btn btn-toggle-tool" id="btnToggleBars" onclick="toggleSlotBars()" title="Ẩn các thanh công cụ từng câu để xem như đề in">
-                  <i data-lucide="layout-template" class="lucide"></i>
-                  <span>Chế độ bản in</span>
-                </button>
-              </div>
+              <button class="btn btn-toggle-tool" id="btnToggleSolutions" onclick="toggleSolutions()" title="Hiện / ẩn đáp án và lời giải">
+                <i data-lucide="eye" class="lucide"></i>
+                <span>Xem đáp án</span>
+              </button>
+              <button class="btn btn-toggle-tool" id="btnToggleBars" onclick="toggleSlotBars()" title="Ẩn các nút trên từng câu để xem như đề in">
+                <i data-lucide="layout-template" class="lucide"></i>
+                <span>Chế độ in</span>
+              </button>
             </div>
           </div>
 
@@ -2742,8 +2550,8 @@
           <!-- Card 3: Question Outline Matrix -->
           <div class="inspector-card">
             <div class="sidebar-group-title">
-              <span><i data-lucide="layout-list" class="lucide" style="margin-right:5px; color:var(--navy-700);"></i>Ma trận 9 câu chuẩn</span>
-              <span class="role-badge admin" style="text-transform:none;">10,0 điểm</span>
+              <span><i data-lucide="layout-list" class="lucide" style="margin-right:5px; color:var(--navy-700);"></i><span id="matrixCardTitle">Ma trận 9 câu chuẩn</span></span>
+              <span class="role-badge admin" id="matrixCardBadge" style="text-transform:none;">10,0 điểm</span>
             </div>
             <div class="slot-outline-list" id="sidebarSlotList"></div>
           </div>
@@ -2790,12 +2598,7 @@
     <div class="page-container">
       <div class="section-hero">
         <div>
-          <div class="section-eyebrow" style="margin-bottom:6px; background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.25);">
-            <i data-lucide="database" class="lucide" style="width:12px; height:12px;"></i>
-            <span>Kho Học Liệu Số Hóa Chuẩn Cấu Trúc</span>
-          </div>
-          <h2>Ngân Hàng Câu Hỏi Toán 10 Theo Ma Trận</h2>
-          <p>Tra cứu theo từng vị trí câu hỏi (Bài I đến Bài V), chuyên đề toán thực tế, hình học và chọn đưa trực tiếp vào đề đang soạn.</p>
+          <h2>Thư viện câu hỏi <span class="js-grade-name">Toán 9</span></h2>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <div style="position:relative; width:300px;">
@@ -2811,6 +2614,15 @@
 
       <div class="page-bar" style="flex-direction:column; align-items:stretch; gap:12px; padding:16px;">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">Khối lớp:</span>
+          <div class="grade-switch" role="tablist" aria-label="Chọn khối lớp">
+            <button class="grade-btn" data-grade-btn="6" onclick="setGrade(6, { mix: false })">Lớp 6</button>
+            <button class="grade-btn" data-grade-btn="7" onclick="setGrade(7, { mix: false })">Lớp 7</button>
+            <button class="grade-btn" data-grade-btn="8" onclick="setGrade(8, { mix: false })">Lớp 8</button>
+            <button class="grade-btn" data-grade-btn="9" onclick="setGrade(9, { mix: false })">Lớp 9</button>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-top:1px solid var(--border); padding-top:10px;">
           <span style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">Kỳ thi / Giai đoạn:</span>
           <div class="filter-pills" id="bankCategoryPills"></div>
         </div>
@@ -2829,12 +2641,7 @@
     <div class="page-container">
       <div class="section-hero">
         <div>
-          <div class="section-eyebrow" style="margin-bottom:6px; background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.25);">
-            <i data-lucide="folder-check" class="lucide" style="width:12px; height:12px;"></i>
-            <span>Lưu Trữ & Xuất Bản Đề Thi</span>
-          </div>
-          <h2>Bộ Đề Đã Lưu Của Bạn</h2>
-          <p>Mở lại các đề đã biên soạn để chỉnh sửa thêm hoặc tải xuống file Word (.docx) tích hợp sẵn công thức Toán Equation.</p>
+          <h2>Đề đã lưu</h2>
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn btn-brand" onclick="switchView('studio')">
@@ -2870,12 +2677,7 @@
     <div class="page-container">
       <div class="section-hero" style="margin-bottom:20px;">
         <div>
-          <div class="section-eyebrow" style="margin-bottom:6px; background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.25);">
-            <i data-lucide="shield" class="lucide" style="width:12px; height:12px;"></i>
-            <span>Trung Tâm Quản Trị Hệ Thống</span>
-          </div>
-          <h2>Quản Lý Người Dùng, Phân Quyền & Kho Đề Nguồn</h2>
-          <p>Quản lý quyền truy cập (Admin / User), kiểm định chất lượng câu hỏi bằng AI và đồng bộ kho 64 đề nguồn.</p>
+          <h2>Quản trị hệ thống</h2>
         </div>
       </div>
 
@@ -3007,6 +2809,7 @@
       <div class="modal-body">
         <input type="hidden" id="editQId" />
         <input type="hidden" id="editQMode" value="local" />
+        <input type="hidden" id="editQPosition" value="" />
         <div id="editQNotice" style="padding:10px 14px; border-radius:10px; background:var(--navy-50); color:var(--navy-800); font-size:12.5px;">
           Bạn đang chỉnh sửa câu hỏi trên <b>tờ đề hiện tại</b> (không làm ảnh hưởng tới ngân hàng câu hỏi chung).
         </div>
@@ -3066,7 +2869,7 @@
               <circle cx="20" cy="10" r="1.8" fill="#fef08a" />
             </svg>
           </span>
-          <span id="authModalHeading">Đăng nhập MathBank 10</span>
+          <span id="authModalHeading">Đăng nhập MathBank</span>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="closeLoginModal()">
           <i data-lucide="x" class="lucide"></i>
@@ -3144,8 +2947,67 @@
     let activePickerSlot = "I.1";
     let showSolutionsFlag = false;
     let hideSlotBarsFlag = false;
+    let pickerLimit = 40;
+    let bankLimit = 60;
+
+    /* ---------- Khối lớp (Toán 6-7-8-9) ---------- */
+    const GRADE_LIST = [6, 7, 8, 9];
+    const _urlParams = new URLSearchParams(location.search);
+    const _urlGrade = Number(_urlParams.get("grade"));
+    const _savedGrade = Number(localStorage.getItem("mb10_grade"));
+    let currentGrade = GRADE_LIST.includes(_urlGrade) ? _urlGrade : (GRADE_LIST.includes(_savedGrade) ? _savedGrade : 9);
+    if (currentGrade !== 9) currentCategory = "all";
+
+    const G9_STRUCTURE = [
+      { title: "Bài I (1,5 điểm)", slots: [{ code: "I.1", bank: "I.1", prefix: "1) " }, { code: "I.2", bank: "I.2", prefix: "2) " }] },
+      { title: "Bài II (1,5 điểm)", slots: [{ code: "II", bank: "II", prefix: "" }] },
+      { title: "Bài III (2,5 điểm)", slots: [{ code: "III.1", bank: "III.1", prefix: "1) " }, { code: "III.2", bank: "III.2", prefix: "2) " }, { code: "III.3", bank: "III.3", prefix: "3) " }] },
+      { title: "Bài IV (4,0 điểm)", slots: [{ code: "IV.1", bank: "IV.1", prefix: "1) " }, { code: "IV.2", bank: "IV.2", prefix: "2) " }] },
+      { title: "Bài V (0,5 điểm)", slots: [{ code: "V", bank: "V", prefix: "" }] }
+    ];
+    const THCS_STRUCTURE = [
+      {
+        title: "PHẦN I. TRẮC NGHIỆM (2,0 điểm)",
+        slots: Array.from({ length: 8 }, (_, i) => ({ code: `TN.${i + 1}`, bank: "TN", prefix: `Câu ${i + 1}. ` }))
+      },
+      {
+        title: "PHẦN II. TỰ LUẬN (8,0 điểm)",
+        slots: [1, 2, 3, 4, 5].map(n => ({ code: `TL.${n}`, bank: `TL.${n}`, prefix: `Bài ${n}. ` }))
+      }
+    ];
+    let EXAM_STRUCTURE = currentGrade === 9 ? G9_STRUCTURE : THCS_STRUCTURE;
+
+    function structureSlots() {
+      return EXAM_STRUCTURE.flatMap(sec => sec.slots);
+    }
+    function bankOf(code) {
+      const s = structureSlots().find(x => x.code === code);
+      return s ? (s.bank || s.code) : code;
+    }
+    /* Nhãn hiển thị của vị trí câu: Toán 9 => "Câu II", Toán 6-8 => "Câu 3" / "Bài 2" */
+    function slotDisplay(slotObj) {
+      if (currentGrade === 9) return `Câu ${slotObj.code}`;
+      return (slotObj.prefix || slotObj.code).replace(/[.\s]+$/, "");
+    }
+    /* Nhãn ngắn của nhóm câu hỏi trong ngân hàng (dùng cho bộ lọc / thống kê) */
+    function bankSlotShortLabel(code) {
+      if (currentGrade === 9) return `Câu ${code}`;
+      if (code === "TN") return "Trắc nghiệm";
+      if (code.startsWith("TL.")) return `Tự luận · Bài ${code.slice(3)}`;
+      return code;
+    }
+    function gradeLabel() {
+      return currentGrade === 9 ? "Toán 9" : `Toán ${currentGrade}`;
+    }
 
     const CATEGORY_PRESETS = {
+      all: {
+        title: "ĐỀ KIỂM TRA MÔN TOÁN — TỔNG HỢP",
+        duration: "90 phút",
+        badge: "Tổng hợp",
+        badgeColor: "#334155",
+        badgeBg: "#e2e8f0"
+      },
       vao_10: {
         title: "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT",
         duration: "120 phút",
@@ -3195,12 +3057,42 @@
       return `<span class="role-badge" style="background:${p.badgeBg}; color:${p.badgeColor}; font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; white-space:nowrap;">${p.badge}</span>`;
     }
 
+    /* Preset tiêu đề/thời lượng theo khối lớp: Toán 9 giữ nguyên, Toán 6-8 lấy từ cấu hình server */
+    function getCategoryPreset(catId) {
+      const base = CATEGORY_PRESETS[catId];
+      if (!base) return null;
+      if (currentGrade === 9) return base;
+      const srv = (appStatus.categories || []).find(c => c.id === catId);
+      const fallbackTitle = catId === "all"
+        ? `ĐỀ KIỂM TRA MÔN TOÁN ${currentGrade} — TỔNG HỢP`
+        : base.title.replace(/TOÁN 9/g, `TOÁN ${currentGrade}`).replace(/CHUYÊN ĐỀ ÔN THI.*/, `ĐỀ ÔN TẬP THEO ĐỀ CƯƠNG — MÔN TOÁN ${currentGrade}`);
+      return {
+        ...base,
+        title: (srv && srv.default_title) || fallbackTitle,
+        duration: (srv && srv.default_duration) || "90 phút"
+      };
+    }
+
+    /* Giá trị mặc định của phần tiêu đề đề thi theo khối */
+    function applyGradeHeaderDefaults() {
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+      if (currentGrade === 9) {
+        set("hdrOrg", "SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI");
+        set("hdrSchool", "ĐỀ THI CHÍNH THỨC");
+        set("hdrCode", "101");
+      } else {
+        set("hdrOrg", "PHÒNG GIÁO DỤC VÀ ĐÀO TẠO");
+        set("hdrSchool", "TRƯỜNG THCS ..................");
+        set("hdrCode", String(currentGrade * 100 + 1));
+      }
+    }
+
     function onExamCategoryChange(catId, doMix = true) {
       currentCategory = catId;
       const selectEl = document.getElementById("examCategorySelect");
       if (selectEl) selectEl.value = catId;
 
-      const preset = CATEGORY_PRESETS[catId];
+      const preset = getCategoryPreset(catId);
       if (preset) {
         const titleEl = document.getElementById("hdrTitle");
         const durEl = document.getElementById("hdrDuration");
@@ -3218,43 +3110,6 @@
         mixNewExam();
       }
     }
-
-    const EXAM_STRUCTURE = [
-      {
-        title: "Bài I (1,5 điểm)",
-        slots: [
-          { code: "I.1", prefix: "1) " },
-          { code: "I.2", prefix: "2) " }
-        ]
-      },
-      {
-        title: "Bài II (1,5 điểm)",
-        slots: [
-          { code: "II", prefix: "" }
-        ]
-      },
-      {
-        title: "Bài III (2,5 điểm)",
-        slots: [
-          { code: "III.1", prefix: "1) " },
-          { code: "III.2", prefix: "2) " },
-          { code: "III.3", prefix: "3) " }
-        ]
-      },
-      {
-        title: "Bài IV (4,0 điểm)",
-        slots: [
-          { code: "IV.1", prefix: "1) " },
-          { code: "IV.2", prefix: "2) " }
-        ]
-      },
-      {
-        title: "Bài V (0,5 điểm)",
-        slots: [
-          { code: "V", prefix: "" }
-        ]
-      }
-    ];
 
     /* UI Helpers: Icons, Progress Bar, Button Spinners, Toast */
     function refreshIcons() {
@@ -3419,7 +3274,7 @@
       document.getElementById("tabBtnRegister").classList.toggle("active", !isLogin);
       document.getElementById("authFormLogin").style.display = isLogin ? "flex" : "none";
       document.getElementById("authFormRegister").style.display = isLogin ? "none" : "flex";
-      document.getElementById("authModalHeading").textContent = isLogin ? "Đăng nhập MathBank 10" : "Tạo tài khoản mới";
+      document.getElementById("authModalHeading").textContent = isLogin ? "Đăng nhập MathBank" : "Tạo tài khoản mới";
       document.getElementById("loginErrorMsg").style.display = "none";
     }
 
@@ -3513,7 +3368,7 @@
         localStorage.setItem("mb10_auth_token", authToken);
         updateAuthUI();
         closeLoginModal();
-        showToast(`Chào mừng ${currentUser.name} đến với MathBank 10!`);
+        showToast(`Chào mừng ${currentUser.name} đến với MathBank!`);
       } finally {
         setBtnLoading(btnEl, false);
       }
@@ -3584,12 +3439,18 @@
     }
 
     async function loadStatus() {
+      const g = currentGrade;
       const [stResp, qResp] = await Promise.all([
-        apiFetch("/api/status"),
-        apiFetch("/api/questions")
+        apiFetch(`/api/status?grade=${g}`),
+        apiFetch(`/api/questions?grade=${g}`)
       ]);
       appStatus = await stResp.json();
       const qData = await qResp.json();
+      if (g !== currentGrade) return; // người dùng đã đổi khối trong lúc tải
+
+      if (appStatus.structure && appStatus.structure.length) {
+        EXAM_STRUCTURE = appStatus.structure;
+      }
 
       allQuestions = qData.questions || [];
       allQuestionsBySlot = {};
@@ -3598,8 +3459,12 @@
         allQuestionsBySlot[q.slot].push(q);
       }
 
-      document.getElementById("topStatBadge").innerHTML =
-        `<i data-lucide="award" class="lucide" style="width:14px; height:14px;"></i><span>${appStatus.total_ingested_exams} đề chuẩn · ${appStatus.total_questions} câu hỏi</span>`;
+      const topChip = document.getElementById("topStatBadge");
+      if (topChip) {
+        topChip.innerHTML = `<i data-lucide="award" class="lucide" style="width:14px; height:14px;"></i><span>${
+          currentGrade === 9 ? "Form tuyển sinh 10 Hà Nội" : `Toán ${currentGrade} · GDPT 2018`
+        }</span>`;
+      }
       const navBankPill = document.getElementById("navBankCountPill");
       if (navBankPill) navBankPill.textContent = appStatus.total_questions;
 
@@ -3612,15 +3477,165 @@
       if (matrixEl && appStatus.slots) {
         matrixEl.innerHTML = appStatus.slots.map(s => `
           <div class="stat-box" title="${s.label}">
-            <span>Câu ${s.code}</span>
+            <span>${bankSlotShortLabel(s.code)}</span>
             <b>${appStatus.slot_counts[s.code] || 0}</b>
           </div>
         `).join("");
       }
 
+      renderGradeUI();
       renderAdminFiles();
       renderSidebarOutline();
       refreshIcons();
+    }
+
+    /* ---------- Khối lớp: chuyển khối & vẽ lại giao diện phụ thuộc khối ---------- */
+    function buildCategorySelect() {
+      const selectEl = document.getElementById("examCategorySelect");
+      if (!selectEl) return;
+      const cats = (appStatus.categories || []).filter(c => (currentGrade !== 9 || c.id !== "all") && (c.id === "all" || c.count > 0));
+      if (!cats.length) return;
+      selectEl.innerHTML = cats.map(c => {
+        const dur = c.default_duration ? ` (${c.default_duration})` : "";
+        const label = c.id === "all" ? "Tất cả kỳ thi — Tổng hợp" : c.title;
+        return `<option value="${c.id}">${label}${dur}</option>`;
+      }).join("");
+      if (!cats.some(c => c.id === currentCategory)) {
+        currentCategory = cats[0].id;
+      }
+      selectEl.value = currentCategory;
+    }
+
+    /* Danh sách "Vị trí trong đề" của form thêm/sửa câu hỏi theo khối đang chọn */
+    function buildQuestionSlotSelect() {
+      const sel = document.getElementById("editQSlot");
+      if (!sel || !appStatus.slots) return;
+      sel.innerHTML = appStatus.slots.map(s => {
+        const label = currentGrade === 9 ? `${s.code} — ${s.label}` : `${bankSlotShortLabel(s.code)} — ${s.label}`;
+        return `<option value="${s.code}">${label}</option>`;
+      }).join("");
+    }
+
+    function renderGradeUI() {
+      /* Bộ chuyển khối (topbar + Studio + Thư viện + Trang chủ) */
+      document.querySelectorAll("[data-grade-btn]").forEach(btn => {
+        btn.classList.toggle("active", Number(btn.dataset.gradeBtn) === currentGrade);
+      });
+      document.querySelectorAll(".js-grade-name").forEach(el => { el.textContent = gradeLabel(); });
+
+      /* Tiêu đề thẻ ma trận ở sidebar Studio */
+      const slotsCount = structureSlots().length;
+      const mt = document.getElementById("matrixCardTitle");
+      const mb = document.getElementById("matrixCardBadge");
+      if (mt) mt.textContent = currentGrade === 9 ? "Ma trận 9 câu chuẩn" : `Ma trận ${slotsCount} câu · 8 TN + 5 TL`;
+      if (mb) mb.textContent = "10,0 điểm";
+
+      const gs = document.getElementById("examGradeSubtitle");
+      if (gs) gs.textContent = currentGrade === 9 ? "Ôn thi vào lớp 10" : "Chương trình GDPT 2018";
+
+      const matrixSec = document.getElementById("homeMatrixSection");
+      if (matrixSec) matrixSec.style.display = currentGrade === 9 ? "" : "none";
+
+      renderQuickStart();
+      renderBankCategoryPills();
+      if (document.getElementById("view-bank")?.classList.contains("active")) {
+        renderBankPills();
+        renderBankList();
+      }
+    }
+
+    function renderHomeCategoryCards() {
+      const box = document.getElementById("homeCategoryCards");
+      if (!box) return;
+      const cats = (appStatus.categories || []).filter(c => c.id !== "all");
+      const colors = {
+        vao_10: { cls: "navy", icon: "award", link: "#0f3a8a", top: "" },
+        giua_hk1: { cls: "amber", icon: "clipboard-check", link: "#b45309", top: "border-top:3px solid #f59e0b;" },
+        cuoi_hk1: { cls: "teal", icon: "book-marked", link: "var(--teal-700)", top: "" },
+        giua_hk2: { cls: "amber", icon: "calendar-check", link: "#b45309", top: "border-top:3px solid #f59e0b;" },
+        cuoi_hk2: { cls: "teal", icon: "graduation-cap", link: "var(--teal-700)", top: "" },
+        chuyen_de: { cls: "navy", icon: "sparkles", link: "#4338ca", top: "border-top:3px solid #6366f1;" }
+      };
+      box.innerHTML = cats.map(c => {
+        const col = colors[c.id] || colors.vao_10;
+        const dur = c.default_duration ? ` (${c.default_duration})` : "";
+        return `
+          <div class="program-card ${col.cls === "teal" ? "teal" : ""}" onclick="openStudioWithCategory('${c.id}')" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; ${col.top}">
+            <div>
+              <div class="program-card-head">
+                <div class="program-icon-circle ${col.cls}"><i data-lucide="${col.icon}" class="lucide" style="width:22px; height:22px;"></i></div>
+                <div>
+                  <div class="program-card-title">${c.title}</div>
+                  <div class="program-card-org">${c.short_title}${dur}</div>
+                </div>
+              </div>
+              <p class="program-card-desc" style="margin-top:12px;">${c.description || ""}</p>
+            </div>
+            <div class="program-card-link" style="color:${col.link};"><span>Soạn đề ${c.short_title}</span><i data-lucide="arrow-right" class="lucide"></i></div>
+          </div>`;
+      }).join("");
+      const ht = document.getElementById("homeSeasonTitle");
+      if (ht) {
+        ht.textContent = currentGrade === 9
+          ? "Đồng Hành Toàn Diện Suốt Năm Học Toán 9 & Thi Vào 10"
+          : `Đồng Hành Toàn Diện Suốt Năm Học Toán ${currentGrade}`;
+      }
+      refreshIcons();
+    }
+
+    /* ---------- Bắt đầu nhanh (trang chủ) ---------- */
+    let qsCategory = null;
+    function renderQuickStart() {
+      const box = document.getElementById("qsCategoryChips");
+      if (!box) return;
+      const cats = (appStatus.categories || []).filter(c => (currentGrade !== 9 || c.id !== "all") && (c.id === "all" || c.count > 0));
+      if (!cats.length) return;
+      if (!cats.some(c => c.id === qsCategory)) qsCategory = cats.some(c => c.id === currentCategory) ? currentCategory : cats[0].id;
+      box.innerHTML = cats.map(c => `
+        <button class="qs-cat ${c.id === qsCategory ? "active" : ""}" onclick="selectQuickCategory('${c.id}')">
+          ${c.id === "all" ? "Tổng hợp" : c.short_title}
+        </button>`).join("");
+    }
+    function selectQuickCategory(catId) {
+      qsCategory = catId;
+      renderQuickStart();
+    }
+    function startQuickExam() {
+      localStorage.setItem("mb10_grade", String(currentGrade));
+      switchView("studio");
+      onExamCategoryChange(qsCategory || currentCategory, true);
+    }
+
+    function openStudioWithCategory(catId) {
+      switchView("studio");
+      onExamCategoryChange(catId, true);
+    }
+
+    async function setGrade(g, opts = {}) {
+      g = Number(g);
+      if (!GRADE_LIST.includes(g)) return;
+      if (g === currentGrade && !opts.force) {
+        if (opts.view) switchView(opts.view);
+        return;
+      }
+      currentGrade = g;
+      localStorage.setItem("mb10_grade", String(g));
+      EXAM_STRUCTURE = g === 9 ? G9_STRUCTURE : THCS_STRUCTURE;
+      currentCategory = g === 9 ? "vao_10" : "all";
+      currentExam = {};
+      localCustomSlots = {};
+      activeBankSlot = "ALL";
+      activeBankCategory = "all";
+      renderGradeUI();
+      await loadStatus();
+      buildCategorySelect();
+      buildQuestionSlotSelect();
+      applyGradeHeaderDefaults();
+      onExamCategoryChange(currentCategory, false);
+      renderExam();
+      if (opts.mix !== false) await mixNewExam();
+      if (opts.view) switchView(opts.view);
+      showToast(`Đã chuyển sang ${gradeLabel()}`);
     }
 
     function convertMarkdownTablesToHtml(text) {
@@ -3707,7 +3722,7 @@
           <div class="slot-outline-item">
             <div class="slot-outline-left" onclick="scrollToSlot('${s.code}')">
               <span class="slot-topic-tag">
-                <span class="slot-code-tag">${s.code}</span>${topic}
+                <span class="slot-code-tag">${currentGrade === 9 ? s.code : slotDisplay(s)}</span>${topic}
               </span>
             </div>
             <div class="slot-outline-actions">
@@ -3755,7 +3770,7 @@
             block.innerHTML = `
               <div class="slot-bar">
                 <div class="slot-bar-meta">
-                  <span class="slot-pill-code">${code}</span>
+                  <span class="slot-pill-code">${slotDisplay(slotObj)}</span>
                   <span>Chưa có câu hỏi</span>
                 </div>
                 <div class="slot-bar-actions">
@@ -3765,14 +3780,14 @@
             `;
           } else {
             const solHtml = q.solution
-              ? `<div class="q-solution"><b>Đáp án / Hướng dẫn (${code}):</b> ${q.solution}</div>`
+              ? `<div class="q-solution"><b>Đáp án / Hướng dẫn (${currentGrade === 9 ? code : slotDisplay(slotObj)}):</b> ${q.solution}</div>`
               : "";
 
             block.innerHTML = `
               <div class="slot-bar">
                 <div class="slot-bar-meta">
-                  <span class="slot-pill-code">Câu ${code}</span>
-                  ${getCategoryBadge(q.category || currentCategory || 'vao_10')}
+                  <span class="slot-pill-code">${slotDisplay(slotObj)}</span>
+                  ${currentCategory === "all" ? getCategoryBadge(q.category || 'vao_10') : ""}
                   ${q.sub_topic ? `<span class="slot-pill-topic">${q.sub_topic}</span>` : ""}
                   <span class="slot-pill-source" title="${q.source_name}">${q.source_name}</span>
                 </div>
@@ -3781,7 +3796,7 @@
                     <i data-lucide="refresh-cw" class="lucide"></i>
                     <span>Đổi câu</span>
                   </button>
-                  <button class="btn btn-xs" onclick="openPickerDrawer('${code}')" title="Duyệt & chọn từ kho 64 đề">
+                  <button class="btn btn-xs" onclick="openPickerDrawer('${code}')" title="Duyệt & chọn từ kho câu hỏi">
                     <i data-lucide="list-filter" class="lucide"></i>
                     <span>Chọn từ kho</span>
                   </button>
@@ -3816,15 +3831,16 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             exclude_ids: currentIds,
-            category: currentCategory || "vao_10"
+            category: currentCategory || (currentGrade === 9 ? "vao_10" : "all"),
+            grade: currentGrade
           })
         });
         const data = await resp.json();
         currentExam = data.exam || {};
         localCustomSlots = {};
         renderExam();
-        const catBadge = (CATEGORY_PRESETS[currentCategory] && CATEGORY_PRESETS[currentCategory].badge) || "Toán 10";
-        showToast(`Đã trộn bộ đề mới chuẩn ${catBadge}`);
+        const catBadge = (CATEGORY_PRESETS[currentCategory] && CATEGORY_PRESETS[currentCategory].badge) || gradeLabel();
+        showToast(currentGrade === 9 ? `Đã trộn bộ đề mới chuẩn ${catBadge}` : `Đã trộn đề ${gradeLabel()} · ${catBadge}`);
       } finally {
         setBtnLoading(btnEl, false);
       }
@@ -3835,21 +3851,29 @@
       try {
         const currQ = currentExam[slotCode];
         const currId = currQ ? currQ.id : null;
-        const resp = await apiFetch("/api/swap", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            slot: slotCode, 
-            current_id: currId,
-            category: currentCategory || "vao_10"
-          })
-        });
-        if (resp.ok) {
+        const usedIds = new Set(Object.values(currentExam).filter(Boolean).map(q => q.id));
+        let picked = null;
+        for (let attempt = 0; attempt < 5 && !picked; attempt++) {
+          const resp = await apiFetch("/api/swap", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              slot: bankOf(slotCode),
+              current_id: currId,
+              category: currentCategory || (currentGrade === 9 ? "vao_10" : "all"),
+              grade: currentGrade
+            })
+          });
+          if (!resp.ok) break;
           const data = await resp.json();
-          currentExam[slotCode] = data.question;
+          // Tránh trùng với câu đang có ở vị trí khác trong cùng đề (trắc nghiệm dùng chung 1 nhóm)
+          if (!usedIds.has(data.question.id) || attempt === 4) picked = data.question;
+        }
+        if (picked) {
+          currentExam[slotCode] = picked;
           delete localCustomSlots[slotCode];
           renderExam(slotCode);
-          showToast(`Đã đổi câu hỏi vị trí ${slotCode}`);
+          showToast(`Đã đổi câu hỏi ${currentGrade === 9 ? "vị trí " + slotCode : slotDisplay(structureSlots().find(x => x.code === slotCode) || { code: slotCode })}`);
         }
       } finally {
         setBtnLoading(btnEl, false);
@@ -3885,7 +3909,9 @@
     /* Slide-over Picker Drawer */
     function openPickerDrawer(slotCode) {
       activePickerSlot = slotCode;
-      document.getElementById("pickerSlotTitle").textContent = slotCode;
+      pickerLimit = 40;
+      document.getElementById("pickerSlotTitle").textContent =
+        currentGrade === 9 ? slotCode : slotDisplay(structureSlots().find(x => x.code === slotCode) || { code: slotCode });
       document.getElementById("pickerSearchInput").value = "";
       document.getElementById("pickerBackdrop").classList.add("open");
       setTimeout(() => document.getElementById("pickerDrawer").classList.add("open"), 10);
@@ -3899,7 +3925,7 @@
 
     function renderPickerItems() {
       const kw = (document.getElementById("pickerSearchInput").value || "").trim().toLowerCase();
-      let pool = allQuestionsBySlot[activePickerSlot] || [];
+      let pool = allQuestionsBySlot[bankOf(activePickerSlot)] || [];
       if (currentCategory && currentCategory !== "all") {
         const inCat = pool.filter(q => (q.category || "vao_10") === currentCategory);
         const others = pool.filter(q => (q.category || "vao_10") !== currentCategory);
@@ -3916,8 +3942,10 @@
 
       const listEl = document.getElementById("pickerCardList");
       const currentSelectedId = currentExam[activePickerSlot] ? currentExam[activePickerSlot].id : null;
+      const totalFiltered = filtered.length;
+      const visible = filtered.slice(0, pickerLimit);
 
-      listEl.innerHTML = filtered.map(q => {
+      listEl.innerHTML = visible.map(q => {
         const isCurrent = q.id === currentSelectedId;
         return `
           <div class="q-card" style="${isCurrent ? 'border-color:var(--navy-700); background:var(--navy-50);' : ''}">
@@ -3936,14 +3964,16 @@
             <div class="q-card-body">${formatQuestionContent(q.content, "", q.figure_path)}</div>
           </div>
         `;
-      }).join("");
+      }).join("") + (totalFiltered > visible.length
+        ? `<button class="btn btn-sm" style="align-self:center; margin:8px auto;" onclick="pickerLimit += 40; renderPickerItems();">Hiển thị thêm (${totalFiltered - visible.length} câu)</button>`
+        : (totalFiltered === 0 ? `<div style="padding:28px; text-align:center; color:var(--text-muted);">Chưa có câu hỏi phù hợp.</div>` : ""));
 
       renderKaTeX(listEl);
       refreshIcons();
     }
 
     function pickQuestionFromDrawer(slotCode, qId) {
-      const pool = allQuestionsBySlot[slotCode] || [];
+      const pool = allQuestionsBySlot[bankOf(slotCode)] || [];
       const found = pool.find(x => x.id === qId);
       if (found) {
         currentExam[slotCode] = { ...found };
@@ -3976,6 +4006,7 @@
 
     function selectBankCategory(catId) {
       activeBankCategory = catId;
+      bankLimit = 60;
       renderBankCategoryPills();
       renderBankList();
     }
@@ -3988,7 +4019,7 @@
         { code: "ALL", label: `Tất cả câu (${allQuestions.length})` },
         ...(appStatus.slots || []).map(s => ({
           code: s.code,
-          label: `Câu ${s.code} (${appStatus.slot_counts[s.code] || 0})`
+          label: `${bankSlotShortLabel(s.code)} (${appStatus.slot_counts[s.code] || 0})`
         }))
       ];
       container.innerHTML = pills.map(p => `
@@ -4000,6 +4031,7 @@
 
     function selectBankSlot(code) {
       activeBankSlot = code;
+      bankLimit = 60;
       renderBankPills();
       renderBankList();
     }
@@ -4010,14 +4042,15 @@
       if (activeBankCategory && activeBankCategory !== "all") {
         pool = pool.filter(q => (q.category || "vao_10") === activeBankCategory);
       }
-      const filtered = pool.filter(q => {
+      const allFiltered = pool.filter(q => {
         if (!kw) return true;
         return (
           (q.content || "").toLowerCase().includes(kw) ||
           (q.sub_topic || "").toLowerCase().includes(kw) ||
           (q.source_name || "").toLowerCase().includes(kw)
         );
-      }).slice(0, 80);
+      });
+      const filtered = allFiltered.slice(0, bankLimit);
 
       const adminControls = isAdmin();
       const listEl = document.getElementById("bankCardList");
@@ -4031,7 +4064,7 @@
         <div class="q-card">
           <div class="q-card-head">
             <div style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
-              <span class="slot-pill-code">Câu ${q.slot}</span>
+              <span class="slot-pill-code">${bankSlotShortLabel(q.slot)}</span>
               ${getCategoryBadge(q.category || 'vao_10')}
               <span style="color:var(--text-muted); font-weight:600;">#${q.id}</span>
               ${q.sub_topic ? `<span class="slot-pill-topic">${q.sub_topic}</span>` : ""}
@@ -4056,15 +4089,25 @@
           <div class="q-card-body">${formatQuestionContent(q.content, "", q.figure_path)}</div>
           ${q.solution ? `<div style="margin-top:10px; padding:8px 12px; background:var(--cream-bg); border-left:3px solid var(--cta-from); border-radius:0 8px 8px 0; font-size:12.5px; color:var(--text-primary);"><b>Đáp số / Hướng dẫn:</b> ${q.solution}</div>` : ""}
         </div>
-      `).join("");
+      `).join("") + (allFiltered.length > filtered.length
+        ? `<button class="btn btn-sm" style="align-self:center; margin:10px auto; display:flex;" onclick="bankLimit += 60; renderBankList();">Hiển thị thêm (${allFiltered.length - filtered.length} câu)</button>`
+        : "");
 
       renderKaTeX(listEl);
       refreshIcons();
     }
 
-    function useQuestionInCurrentExam(slotCode, qId) {
+    function useQuestionInCurrentExam(bankSlot, qId) {
       const found = allQuestions.find(x => x.id === qId);
       if (found) {
+        // Chọn vị trí trên tờ đề: ưu tiên vị trí trống cùng nhóm, nếu đầy thì thay vị trí đầu tiên
+        const positions = structureSlots().filter(x => (x.bank || x.code) === bankSlot).map(x => x.code);
+        if (!positions.length) return;
+        if (positions.some(c => currentExam[c] && currentExam[c].id === qId)) {
+          showToast(`Câu #${qId} đã có trong đề hiện tại`);
+          return;
+        }
+        const slotCode = positions.find(c => !currentExam[c]) || positions[0];
         currentExam[slotCode] = { ...found };
         delete localCustomSlots[slotCode];
         switchView("studio");
@@ -4092,8 +4135,11 @@
           ? currentExam[slotCodeOverride]
           : allQuestions.find(x => x.id === qId);
         if (!q) return;
+        const posObj = structureSlots().find(x => x.code === slotCodeOverride);
+        const posLabel = posObj ? (currentGrade === 9 ? posObj.code : slotDisplay(posObj)) : bankSlotShortLabel(q.slot);
         document.getElementById("qModalTitle").textContent =
-          effectiveMode === "master" ? `Sửa câu hỏi gốc #${q.id}` : `Chỉnh sửa câu ${q.slot} trên đề hiện tại`;
+          effectiveMode === "master" ? `Sửa câu hỏi gốc #${q.id}` : `Chỉnh sửa ${currentGrade === 9 ? "câu " : ""}${posLabel} trên đề hiện tại`;
+        document.getElementById("editQPosition").value = slotCodeOverride || "";
         document.getElementById("editQId").value = q.id;
         document.getElementById("editQSlot").value = q.slot;
         document.getElementById("editQTopic").value = q.sub_topic || "";
@@ -4103,7 +4149,8 @@
       } else {
         document.getElementById("qModalTitle").textContent = "Thêm câu hỏi mới vào Ngân hàng";
         document.getElementById("editQId").value = "";
-        document.getElementById("editQSlot").value = activeBankSlot !== "ALL" ? activeBankSlot : "I.1";
+        document.getElementById("editQPosition").value = "";
+        document.getElementById("editQSlot").value = activeBankSlot !== "ALL" ? activeBankSlot : ((appStatus.slots && appStatus.slots[0]) ? appStatus.slots[0].code : "I.1");
         document.getElementById("editQTopic").value = "";
         document.getElementById("editQSource").value = "Tự soạn";
         document.getElementById("editQContent").value = "";
@@ -4125,17 +4172,18 @@
         sub_topic: document.getElementById("editQTopic").value,
         source_name: document.getElementById("editQSource").value,
         content: document.getElementById("editQContent").value,
-        solution: document.getElementById("editQSolution").value
+        solution: document.getElementById("editQSolution").value,
+        grade: currentGrade
       };
 
       // Mode 1: Local per-exam edit (safe for all Teachers/Students)
       if (mode === "local" && qId) {
-        const slot = payload.slot;
+        const slot = document.getElementById("editQPosition").value || payload.slot;
         const existing = currentExam[slot] || {};
         const updatedLocal = {
           ...existing,
           id: Number(qId),
-          slot,
+          slot: existing.slot || payload.slot,
           sub_topic: payload.sub_topic,
           source_name: payload.source_name,
           content: payload.content,
@@ -4145,7 +4193,7 @@
         localCustomSlots[slot] = updatedLocal;
         closeQuestionModal();
         renderExam(slot);
-        showToast(`Đã cập nhật nội dung Câu ${slot} trên tờ đề`);
+        showToast(`Đã cập nhật nội dung ${currentGrade === 9 ? "Câu " + slot : "câu hỏi"} trên tờ đề`);
         return;
       }
 
@@ -4215,7 +4263,9 @@
           exam_title: document.getElementById("hdrTitle").value,
           academic_year: document.getElementById("hdrYear").value,
           exam_code: document.getElementById("hdrCode").value,
-          duration: document.getElementById("hdrDuration").value
+          duration: document.getElementById("hdrDuration").value,
+          grade: currentGrade,
+          category: currentCategory
         };
         const resp = await apiFetch("/api/saved-exams", {
           method: "POST",
@@ -4251,7 +4301,10 @@
         }
         tbody.innerHTML = savedExamsList.map(item => `
           <tr>
-            <td><span class="slot-pill-code">Mã ${item.exam_code}</span></td>
+            <td>
+              <span class="slot-pill-code">Mã ${item.exam_code}</span>
+              <span class="role-badge" style="margin-left:4px; background:#e0e7ff; color:#3730a3; font-size:10.5px;">Lớp ${(item.header && item.header.grade) || 9}</span>
+            </td>
             <td style="font-weight:600; color:var(--navy-800);">${item.title}</td>
             <td style="color:var(--text-secondary);">${(item.header && item.header.exam_title) || ""}</td>
             <td style="color:var(--text-muted); font-variant-numeric:tabular-nums;">${item.created_at}</td>
@@ -4274,10 +4327,19 @@
       }
     }
 
-    function openSavedExamInStudio(savedId) {
+    async function openSavedExamInStudio(savedId) {
       const rec = savedExamsList.find(x => x.id === savedId);
       if (!rec) return;
       const h = rec.header || {};
+      const recGrade = Number(h.grade) || 9;
+      if (recGrade !== currentGrade) {
+        await setGrade(recGrade, { mix: false });
+      }
+      if (h.category && (appStatus.categories || []).some(c => c.id === h.category)) {
+        currentCategory = h.category;
+        const sel = document.getElementById("examCategorySelect");
+        if (sel) sel.value = currentCategory;
+      }
       if (h.org_name) document.getElementById("hdrOrg").value = h.org_name;
       if (h.school_name) document.getElementById("hdrSchool").value = h.school_name;
       if (h.exam_title) document.getElementById("hdrTitle").value = h.exam_title;
@@ -4304,6 +4366,7 @@
       const h = rec.header || {};
       await downloadDocxPayload({
         slot_question_ids: rec.slot_question_ids || {},
+        grade: Number(h.grade) || 9,
         org_name: h.org_name || "SỞ GIÁO DỤC VÀ ĐÀO TẠO HÀ NỘI",
         school_name: h.school_name || "ĐỀ THI CHÍNH THỨC",
         exam_title: h.exam_title || "KỲ THI TUYỂN SINH VÀO LỚP 10 THPT",
@@ -4411,9 +4474,9 @@
             </td>
             <td style="text-align:right; white-space:nowrap;">
               ${f.ingested && f.exam_id ? `
-                <button class="btn btn-xs" onclick="qaExam(${f.exam_id}, this)" title="Chạy LLM QA kiểm định & sửa lỗi">
+                ${currentGrade === 9 ? `<button class="btn btn-xs" onclick="qaExam(${f.exam_id}, this)" title="Chạy LLM QA kiểm định & sửa lỗi">
                   <i data-lucide="sparkles" class="lucide"></i> QA
-                </button>
+                </button>` : ""}
                 <button class="btn btn-xs btn-danger" onclick="deleteExamFromDb(${f.exam_id}, this)" title="Xóa đề này khỏi DB">
                   <i data-lucide="trash-2" class="lucide"></i>
                 </button>
@@ -4510,6 +4573,7 @@
       await downloadDocxPayload({
         slot_question_ids: slotIds,
         custom_questions: localCustomSlots,
+        grade: currentGrade,
         org_name: document.getElementById("hdrOrg").value,
         school_name: document.getElementById("hdrSchool").value,
         exam_title: document.getElementById("hdrTitle").value,
@@ -4537,12 +4601,14 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `De_Toan_10_Ma_${payload.exam_code || "101"}.docx`;
+        const fileGrade = Number(payload.grade) || 9;
+        const fileName = `De_Toan_${fileGrade === 9 ? 10 : fileGrade}_Ma_${payload.exam_code || "101"}.docx`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        showToast(`Đã tải xuống De_Toan_10_Ma_${payload.exam_code || "101"}.docx`);
+        showToast(`Đã tải xuống ${fileName}`);
       } finally {
         setBtnLoading(btnEl, false);
       }
@@ -4559,9 +4625,20 @@
 
     window.addEventListener("DOMContentLoaded", async () => {
       refreshIcons();
+      renderKaTeX(document.querySelector(".hero-exam-card"));
       await checkCurrentSession();
       await loadStatus();
+      buildCategorySelect();
+      buildQuestionSlotSelect();
+      applyGradeHeaderDefaults();
+      onExamCategoryChange(currentCategory, false);
       await mixNewExam();
+      const _urlView = _urlParams.get("view");
+      if (_urlView && document.getElementById(`view-${_urlView}`)) {
+        switchView(_urlView);
+      } else if (localStorage.getItem("mb10_grade")) {
+        switchView("studio"); // người dùng cũ vào thẳng trang soạn đề
+      }
     });
   </script>
 </body>
