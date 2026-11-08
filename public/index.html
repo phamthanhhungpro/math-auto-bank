@@ -1175,6 +1175,35 @@
 
 
 
+
+    /* ========================================================
+       HIỆU NĂNG THƯ VIỆN: bỏ qua layout/paint của thẻ ngoài màn hình
+       ======================================================== */
+    .q-card {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 230px;
+    }
+    .q-card-body.math-pending { opacity: 0.35; }
+    .q-card-body { transition: opacity 0.12s ease; }
+    .bank-load-more { align-self: center; margin: 12px auto; display: flex; }
+    .bank-end { text-align: center; color: var(--text-muted); font-size: 12.5px; padding: 14px 0; }
+    details.q-sol {
+      margin-top: 10px;
+      border-left: 3px solid var(--cta-from);
+      background: var(--cream-bg);
+      border-radius: 0 8px 8px 0;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      color: var(--text-primary);
+    }
+    details.q-sol > summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--navy-800);
+      list-style-position: inside;
+    }
+    details.q-sol[open] > summary { margin-bottom: 6px; }
+
     /* ========================================================
        LOADING OVERLAY (khoá thao tác khi tải đề)
        ======================================================== */
@@ -2673,7 +2702,7 @@
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <div style="position:relative; width:300px;">
-            <input class="input" id="bankSearchInput" placeholder="Tìm nội dung, dạng toán, tên trường..." oninput="renderBankList()" style="padding-left:34px; border-radius:999px; border:none; height:38px;" />
+            <input class="input" id="bankSearchInput" placeholder="Tìm nội dung, dạng toán, tên trường..." oninput="debouncedBankRender()" style="padding-left:34px; border-radius:999px; border:none; height:38px;" />
             <i data-lucide="search" class="lucide" style="position:absolute; left:12px; top:11px; color:var(--text-muted);"></i>
           </div>
           <button class="btn btn-brand" id="btnAddMasterQuestion" onclick="openQuestionModal(null, 'master')" style="display:none;">
@@ -2860,7 +2889,7 @@
         </button>
       </div>
       <div class="drawer-sub">
-        <input class="input" id="pickerSearchInput" placeholder="Tìm theo từ khóa, dạng toán, tên trường..." oninput="renderPickerItems()" />
+        <input class="input" id="pickerSearchInput" placeholder="Tìm theo từ khóa, dạng toán, tên trường..." oninput="debouncedPickerRender()" />
       </div>
       <div class="drawer-body">
         <div class="q-card-list" id="pickerCardList"></div>
@@ -3524,6 +3553,8 @@
       }
 
       allQuestions = qData.questions || [];
+      bankRenderKey = "";
+      _searchIndex.clear();
       allQuestionsBySlot = {};
       for (const q of allQuestions) {
         if (!allQuestionsBySlot[q.slot]) allQuestionsBySlot[q.slot] = [];
@@ -4021,7 +4052,7 @@
     /* Slide-over Picker Drawer */
     function openPickerDrawer(slotCode) {
       activePickerSlot = slotCode;
-      pickerLimit = 40;
+      pickerLimit = 20;
       document.getElementById("pickerSlotTitle").textContent =
         currentGrade === 9 ? slotCode : slotDisplay(structureSlots().find(x => x.code === slotCode) || { code: slotCode });
       document.getElementById("pickerSearchInput").value = "";
@@ -4036,21 +4067,14 @@
     }
 
     function renderPickerItems() {
-      const kw = (document.getElementById("pickerSearchInput").value || "").trim().toLowerCase();
+      const kw = normSearch((document.getElementById("pickerSearchInput").value || "").trim());
       let pool = allQuestionsBySlot[bankOf(activePickerSlot)] || [];
       if (currentCategory && currentCategory !== "all") {
         const inCat = pool.filter(q => (q.category || "vao_10") === currentCategory);
         const others = pool.filter(q => (q.category || "vao_10") !== currentCategory);
         pool = [...inCat, ...others];
       }
-      const filtered = pool.filter(q => {
-        if (!kw) return true;
-        return (
-          (q.content || "").toLowerCase().includes(kw) ||
-          (q.sub_topic || "").toLowerCase().includes(kw) ||
-          (q.source_name || "").toLowerCase().includes(kw)
-        );
-      });
+      const filtered = kw ? pool.filter(q => questionSearchText(q).includes(kw)) : pool;
 
       const listEl = document.getElementById("pickerCardList");
       const currentSelectedId = currentExam[activePickerSlot] ? currentExam[activePickerSlot].id : null;
@@ -4073,14 +4097,14 @@
                 <span>${isCurrent ? 'Đang dùng' : 'Chọn câu này'}</span>
               </button>
             </div>
-            <div class="q-card-body">${formatQuestionContent(q.content, "", q.figure_path)}</div>
+            <div class="q-card-body math-pending">${formatQuestionContent(q.content, "", q.figure_path)}</div>
           </div>
         `;
       }).join("") + (totalFiltered > visible.length
-        ? `<button class="btn btn-sm" style="align-self:center; margin:8px auto;" onclick="pickerLimit += 40; renderPickerItems();">Hiển thị thêm (${totalFiltered - visible.length} câu)</button>`
+        ? `<button class="btn btn-sm" style="align-self:center; margin:8px auto;" onclick="pickerLimit += 20; renderPickerItems();">Hiển thị thêm (${totalFiltered - visible.length} câu)</button>`
         : (totalFiltered === 0 ? `<div style="padding:28px; text-align:center; color:var(--text-muted);">Chưa có câu hỏi phù hợp.</div>` : ""));
 
-      renderKaTeX(listEl);
+      lazyMath(listEl);
       refreshIcons();
     }
 
@@ -4148,31 +4172,61 @@
       renderBankList();
     }
 
-    function renderBankList() {
-      const kw = (document.getElementById("bankSearchInput").value || "").trim().toLowerCase();
-      let pool = activeBankSlot === "ALL" ? allQuestions : (allQuestionsBySlot[activeBankSlot] || []);
-      if (activeBankCategory && activeBankCategory !== "all") {
-        pool = pool.filter(q => (q.category || "vao_10") === activeBankCategory);
+    /* ---------- Hiệu năng: tìm kiếm không dấu, phân trang, KaTeX nạp lười ---------- */
+    const _searchIndex = new Map();
+    function normSearch(t) {
+      return (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    }
+    function questionSearchText(q) {
+      let v = _searchIndex.get(q.id);
+      if (v === undefined) {
+        v = normSearch(`${q.content || ""} ${q.sub_topic || ""} ${q.source_name || ""}`);
+        _searchIndex.set(q.id, v);
       }
-      const allFiltered = pool.filter(q => {
-        if (!kw) return true;
-        return (
-          (q.content || "").toLowerCase().includes(kw) ||
-          (q.sub_topic || "").toLowerCase().includes(kw) ||
-          (q.source_name || "").toLowerCase().includes(kw)
-        );
+      return v;
+    }
+    function debounce(fn, ms = 250) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    // Chỉ vẽ công thức (KaTeX) cho phần tử sắp xuất hiện trên màn hình
+    const _mathObserver = ("IntersectionObserver" in window)
+      ? new IntersectionObserver(entries => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            _mathObserver.unobserve(e.target);
+            renderKaTeX(e.target);
+            e.target.classList.remove("math-pending");
+          }
+        }, { rootMargin: "700px 0px" })
+      : null;
+    function lazyMath(root) {
+      root.querySelectorAll(".math-pending:not([data-obs])").forEach(n => {
+        n.dataset.obs = "1";
+        if (_mathObserver) _mathObserver.observe(n);
+        else { renderKaTeX(n); n.classList.remove("math-pending"); }
       });
-      const filtered = allFiltered.slice(0, bankLimit);
-
-      const adminControls = isAdmin();
-      const listEl = document.getElementById("bankCardList");
-
-      if (filtered.length === 0) {
-        listEl.innerHTML = `<div class="data-card" style="padding:36px; text-align:center; color:var(--text-muted);">Không tìm thấy câu hỏi phù hợp với bộ lọc hiện tại.</div>`;
-        return;
+    }
+    function openSolutionDetails(el) {
+      if (!el.open) return;
+      const body = el.querySelector(".q-solution-body");
+      if (body && !body.dataset.done) {
+        body.dataset.done = "1";
+        renderKaTeX(body);
       }
+    }
 
-      listEl.innerHTML = filtered.map(q => `
+    const BANK_PAGE = 20;
+    let bankFiltered = [];
+    let bankShown = 0;
+    let bankRenderKey = "";
+    let _bankMoreObserver = null;
+    const debouncedBankRender = debounce(() => renderBankList(), 250);
+    const debouncedPickerRender = debounce(() => { pickerLimit = 20; renderPickerItems(); }, 250);
+
+    function bankCardHtml(q, adminControls) {
+      return `
         <div class="q-card">
           <div class="q-card-head">
             <div style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
@@ -4198,15 +4252,64 @@
               ` : ""}
             </div>
           </div>
-          <div class="q-card-body">${formatQuestionContent(q.content, "", q.figure_path)}</div>
-          ${q.solution ? `<div style="margin-top:10px; padding:8px 12px; background:var(--cream-bg); border-left:3px solid var(--cta-from); border-radius:0 8px 8px 0; font-size:12.5px; color:var(--text-primary);"><b>Đáp số / Hướng dẫn:</b> ${q.solution}</div>` : ""}
-        </div>
-      `).join("") + (allFiltered.length > filtered.length
-        ? `<button class="btn btn-sm" style="align-self:center; margin:10px auto; display:flex;" onclick="bankLimit += 60; renderBankList();">Hiển thị thêm (${allFiltered.length - filtered.length} câu)</button>`
-        : "");
+          <div class="q-card-body math-pending">${formatQuestionContent(q.content, "", q.figure_path)}</div>
+          ${q.solution ? `
+            <details class="q-sol" ontoggle="openSolutionDetails(this)">
+              <summary>Xem đáp án / lời giải</summary>
+              <div class="q-solution-body">${q.solution}</div>
+            </details>` : ""}
+        </div>`;
+    }
 
-      renderKaTeX(listEl);
+    function appendBankCards() {
+      const listEl = document.getElementById("bankCardList");
+      if (!listEl) return;
+      const adminControls = isAdmin();
+      const more = listEl.querySelector(".bank-load-more");
+      if (more) { if (_bankMoreObserver) _bankMoreObserver.unobserve(more); more.remove(); }
+      const next = bankFiltered.slice(bankShown, bankShown + BANK_PAGE);
+      bankShown += next.length;
+      const remaining = bankFiltered.length - bankShown;
+      listEl.insertAdjacentHTML("beforeend",
+        next.map(q => bankCardHtml(q, adminControls)).join("") +
+        (remaining > 0
+          ? `<button class="btn bank-load-more" onclick="appendBankCards()">Hiển thị thêm (${remaining} câu)</button>`
+          : (bankFiltered.length > BANK_PAGE ? `<div class="bank-end">Đã hiển thị hết ${bankFiltered.length} câu</div>` : "")));
+      lazyMath(listEl);
       refreshIcons();
+      // Tự nạp thêm khi cuộn gần cuối danh sách
+      const btn = listEl.querySelector(".bank-load-more");
+      if (btn && "IntersectionObserver" in window) {
+        if (!_bankMoreObserver) {
+          _bankMoreObserver = new IntersectionObserver(entries => {
+            for (const e of entries) if (e.isIntersecting) appendBankCards();
+          }, { rootMargin: "500px 0px" });
+        }
+        _bankMoreObserver.observe(btn);
+      }
+    }
+
+    function renderBankList(force = false) {
+      const listEl = document.getElementById("bankCardList");
+      if (!listEl) return;
+      const kw = normSearch((document.getElementById("bankSearchInput").value || "").trim());
+      const key = [currentGrade, activeBankCategory, activeBankSlot, kw, allQuestions.length, isAdmin() ? 1 : 0].join("|");
+      if (!force && key === bankRenderKey && listEl.children.length) return; // không vẽ lại khi không có gì đổi
+      bankRenderKey = key;
+
+      let pool = activeBankSlot === "ALL" ? allQuestions : (allQuestionsBySlot[activeBankSlot] || []);
+      if (activeBankCategory && activeBankCategory !== "all") {
+        pool = pool.filter(q => (q.category || "vao_10") === activeBankCategory);
+      }
+      bankFiltered = kw ? pool.filter(q => questionSearchText(q).includes(kw)) : pool;
+      bankShown = 0;
+      listEl.innerHTML = "";
+
+      if (bankFiltered.length === 0) {
+        listEl.innerHTML = `<div class="data-card" style="padding:36px; text-align:center; color:var(--text-muted);">Không tìm thấy câu hỏi phù hợp với bộ lọc hiện tại.</div>`;
+        return;
+      }
+      appendBankCards();
     }
 
     function useQuestionInCurrentExam(bankSlot, qId) {
